@@ -1,0 +1,6 @@
+# Uploaded scans are documents/images only — never executable code.
+Options -ExecCGI
+php_flag engine off
+<FilesMatch "\.(php|phtml|php3|php4|php5|phar|cgi|pl|asp|aspx|shtml|shtm|htaccess)$">
+    Require all denied
+</FilesMatch>

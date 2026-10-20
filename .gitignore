@@ -1,0 +1,13 @@
+# Uploaded scanned agreements — never commit real client documents
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+!uploads/index.html
+
+# Local environment overrides / scratch
+config.local.php
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
