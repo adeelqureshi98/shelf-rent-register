@@ -87,6 +87,7 @@ if ($action === 'record_payment') {
         ':n' => $notes !== '' ? $notes : null, ':u' => currentUser()['id'],
     ]);
     $pid = (int)$pdo->lastInsertId();
+    audit($pdo, 'create', 'payment', $pid, 'Recorded ' . money($amount) . ' (' . $method . ') on bill #' . (int)$bill['id'] . '.');
     flash('success', 'Payment of ' . money($amount) . ' recorded successfully.');
     header('Location: receipt.php?payment_id=' . $pid . '&back=' . urlencode($back));
     exit;
@@ -103,6 +104,7 @@ if ($action === 'set_amount') {
     } else {
         $up = $pdo->prepare('UPDATE bills SET expected_amount = :a WHERE id = :id');
         $up->execute([':a' => $amount, ':id' => $bill['id']]);
+        audit($pdo, 'set_amount', 'bill', (int)$bill['id'], 'Entered actual billed amount ' . money($amount) . ' on an awaited percentage bill.');
         flash('success', 'Billed amount of ' . money($amount) . ' saved. The bill is now a normal payable bill.');
     }
     header('Location: ' . $back);
@@ -112,8 +114,14 @@ if ($action === 'set_amount') {
 if ($action === 'delete_payment') {
     requireRole(['admin']);
     $pid = (int)($_POST['payment_id'] ?? 0);
+    $info = $pdo->prepare('SELECT amount, bill_id FROM payments WHERE id = :id');
+    $info->execute([':id' => $pid]);
+    $prow = $info->fetch();
     $del = $pdo->prepare('DELETE FROM payments WHERE id = :id');
     $del->execute([':id' => $pid]);
+    if ($prow) {
+        audit($pdo, 'delete', 'payment', $pid, 'Deleted payment of ' . money($prow['amount']) . ' from bill #' . (int)$prow['bill_id'] . '.');
+    }
     flash('success', 'Payment deleted.');
     header('Location: ' . $back);
     exit;

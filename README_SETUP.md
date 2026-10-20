@@ -66,6 +66,36 @@ Change these passwords after first login on any real deployment
 5. Set the `uploads/` folder permission to **775**.
 6. Visit `https://your-domain/shelf-rent-register/` and sign in.
 
+## Upgrading an existing v1 install to v2
+
+If the register is already running with v1 data, do **not** re-import
+`database.sql` (that is for fresh installs). Instead:
+
+1. Back up first (Admin → Backup & Restore → Download Backup).
+2. Import **`upgrade_v2.sql`** once (phpMyAdmin → Import, or
+   `mysql -u root -p shelf_rent_register < upgrade_v2.sql`).
+   It adds the supplier email column, the `incentives`, `reminder_log`
+   and `audit_log` tables, and the v2 sample data. Nothing is dropped;
+   all existing users, agreements, bills and payments are preserved.
+3. Replace the PHP files with the v2 files (keep your edited
+   `config.php`).
+
+## Automatic email reminders (optional)
+
+The Reminders page sends WhatsApp/email reminders one click at a
+time and logs them. To also send **email** reminders automatically
+for everything overdue or due within 7 days, schedule the CLI
+script — it uses the server's mail function and logs every send:
+
+- **Linux/cron:** `0 9 * * * php /path/to/shelf-rent-register/cron_reminders.php`
+- **Windows Task Scheduler:** run `php.exe C:\xampp\htdocs\shelf-rent-register\cron_reminders.php` daily.
+
+Suppliers without an email address on their agreement are skipped
+(and printed in the script's output). WhatsApp cannot be sent in
+the background by a web app — automatic WhatsApp requires the
+WhatsApp Business API; the one-click WhatsApp button on the
+Reminders page is the built-in path.
+
 ## Troubleshooting
 
 | Problem | Fix |

@@ -2,11 +2,17 @@
 
 ## Database design
 
-Four tables, deliberately small. **users** (login accounts; `role` enum;
+Seven tables, deliberately small. **users** (login accounts; `role` enum;
 passwords stored only as `password_hash()` output). **agreements** (one row per
 supplier agreement: ledger code is `UNIQUE`, fixed agreements carry
 `rent_amount`, percentage agreements carry `percentage_rate` instead, the scan
-is a file *name* — the file itself lives in `uploads/`, never as a blob).
+is a file *name* — the file itself lives in `uploads/`, never as a blob; v2
+added `contact_email` for reminders). **incentives** (v2: promotion/display/
+launch money on top of rent; percentage incentives keep `expected_amount`
+NULL = Awaited, the same rule as bills). **reminder_log** (v2: every reminder
+marked sent, by whom, or NULL = the automatic cron script). **audit_log**
+(v2: who did what; deliberately no foreign key to `users`, so an audit row
+survives the account it describes).
 **bills** (one materialised row per billed month per agreement, `UNIQUE(agreement_id, bill_month)`,
 with `due_date` and a nullable `expected_amount`). **payments** (many rows per
 bill; amount, date, method, reference, cheque status, and `received_by` for the
@@ -78,9 +84,39 @@ grid, dashboard and reports agree.
   under `assets/vendor/`, so the system runs identically on a shop PC with no
   internet connection; nothing depends on a CDN being reachable.
 
-## With more time I would add
+## Added in v2
 
-Per-shelf/per-location rent breakdown, automated renewal reminders (email/
-WhatsApp) before expiry, an accounts-style supplier statement PDF per company,
-incentive tracking alongside rent (the register's name promises it), and a
-read-only API for the mart's accounting software.
+- **Incentive tracking** — the register's name always promised this half.
+  Fixed or percentage basis, the same Awaited rule as percentage rent, the
+  same status engine style, and one shared read path so the incentives
+  page, dashboard panel, company ledger and reports all agree.
+- **Reminders page + schedulable email** — open bills and incentives
+  grouped Overdue / due in 7 days / due in 30 days, with one-click
+  WhatsApp (a `wa.me` link with the message pre-written) and email
+  (`mailto:`), a "Mark sent" log, and `cron_reminders.php`, a CLI script
+  that emails everything overdue or due within 7 days via `mail()` and
+  logs its sends. **Honest limit:** true background WhatsApp sending
+  needs the WhatsApp Business API — no web page can do it alone — so
+  WhatsApp is one-click here, and the automatic path is email.
+- **Supplier statements** — accounts-style, per company and period:
+  opening balance, bills and payments in date order with a running
+  balance, closing balance; print / Save-PDF clean.
+- **Audit log** — logins, payments, agreements, users, incentives,
+  backups and reminder sends are recorded (user, action, entity,
+  details, IP) and viewable by Admin with filters. Auditing is
+  best-effort by design: a failed audit write never blocks the
+  business action it describes.
+- **Urdu language toggle** — EN/اردو switch in the sidebar; Urdu mode
+  is full RTL with a Nastaliq font stack and raised line-heights.
+  Scope is the UI chrome only (nav, titles, KPI labels, buttons,
+  status names, login) — data values are never translated, so the
+  figures are identical in both languages.
+- **Reports hub** — the two original reports plus company-wise
+  summary, aging buckets (0–30/31–60/61–90/90+ days), payment-method
+  summary, incentive report and expiring agreements (30/60/90 days),
+  **every one with a CSV download**.
+
+## With more time I would still add
+
+Per-shelf/per-location rent breakdown, and a read-only API for the
+mart's accounting software.

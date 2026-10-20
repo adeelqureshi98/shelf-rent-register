@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $pdo->prepare('INSERT INTO users (name, username, password_hash, role) VALUES (:n, :u, :p, :r)')
                     ->execute([':n' => $name, ':u' => $user, ':p' => password_hash($pass, PASSWORD_DEFAULT), ':r' => $role]);
+                audit($pdo, 'create', 'user', (int)$pdo->lastInsertId(), "Created user '$user' with role $role.");
                 flash('success', "User '$user' created with role $role.");
             }
         }
@@ -48,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $pdo->prepare('UPDATE users SET role = :r, is_active = :a WHERE id = :id')
                 ->execute([':r' => $role, ':a' => $active, ':id' => $id]);
+            audit($pdo, 'update', 'user', $id, 'Set role to ' . $role . ', active = ' . ($active ? 'yes' : 'no') . '.');
             flash('success', 'User updated.');
         }
     }
@@ -60,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $pdo->prepare('UPDATE users SET password_hash = :p WHERE id = :id')
                 ->execute([':p' => password_hash($pass, PASSWORD_DEFAULT), ':id' => $id]);
+            audit($pdo, 'password_reset', 'user', $id, 'Password was reset by an administrator.');
             flash('success', 'Password reset.');
         }
     }
@@ -75,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('error', 'This user has recorded payments, so the account cannot be deleted. Deactivate it instead, to protect the audit trail.');
             } else {
                 $pdo->prepare('DELETE FROM users WHERE id = :id')->execute([':id' => $id]);
+                audit($pdo, 'delete', 'user', $id, 'User account deleted.');
                 flash('success', 'User deleted.');
             }
         }
@@ -86,8 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $users = $pdo->query('SELECT * FROM users ORDER BY role, name')->fetchAll();
 
-layoutHead('Users', 'users');
-pageTitle('Users', 'Staff accounts and roles. Permissions are enforced on the server for every action.');
+layoutHead(t('users'), 'users');
+pageTitle(t('users'), 'Staff accounts and roles. Permissions are enforced on the server for every action.');
 ?>
 
 <div class="row g-3">
@@ -116,7 +120,7 @@ pageTitle('Users', 'Staff accounts and roles. Permissions are enforced on the se
                   <label class="form-check form-switch m-0">
                     <input class="form-check-input" type="checkbox" name="is_active" <?= $u['is_active'] ? 'checked' : '' ?>>
                   </label>
-                  <button class="btn btn-sm btn-light border" type="submit">Save</button>
+                  <button class="btn btn-sm btn-light border" type="submit"><?= e(t('save')) ?></button>
                 </form>
                 <form method="post" class="d-inline-flex gap-1 align-items-center mt-1" onsubmit="return this.password.value.length >= 6 || (alert('New password must be at least 6 characters.'), false);">
                   <?= csrfField() ?>
@@ -130,7 +134,7 @@ pageTitle('Users', 'Staff accounts and roles. Permissions are enforced on the se
                   <?= csrfField() ?>
                   <input type="hidden" name="action" value="delete">
                   <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
-                  <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                  <button class="btn btn-sm btn-outline-danger" type="submit"><?= e(t('delete')) ?></button>
                 </form>
                 <?php endif; ?>
               </td>

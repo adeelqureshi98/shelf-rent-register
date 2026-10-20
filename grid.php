@@ -74,8 +74,8 @@ if ($status !== '') {
     }));
 }
 
-layoutHead('Payment Grid', 'grid');
-pageTitle('Payment Grid', 'Companies in rows, months in columns. Click any bill cell to see details or record a payment.');
+layoutHead(t('payment_grid'), 'grid');
+pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bill cell to see details or record a payment.');
 ?>
 
 <form class="filter-bar" method="get">
@@ -95,7 +95,7 @@ pageTitle('Payment Grid', 'Companies in rows, months in columns. Click any bill 
       <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= statusLabel($s) ?></option>
     <?php endforeach; ?>
   </select>
-  <button class="btn btn-gold" type="submit">Filter</button>
+  <button class="btn btn-gold" type="submit"><?= e(t('filter')) ?></button>
   <?php if ($q !== '' || $status !== ''): ?>
     <a class="btn btn-light border" href="grid.php?year=<?= $year ?>">Clear</a>
   <?php endif; ?>
@@ -105,8 +105,8 @@ pageTitle('Payment Grid', 'Companies in rows, months in columns. Click any bill 
   <?php foreach (['received', 'partial', 'due', 'overdue', 'awaited'] as $s): ?>
     <span class="pill pill-<?= $s ?> me-1"><?= statusLabel($s) ?></span>
   <?php endforeach; ?>
-  <span class="pill pill-out me-1">Out of Period</span>
-  <span class="pill pill-nobill">No Bill (not a billing month)</span>
+  <span class="pill pill-out me-1"><?= statusLabel('out') ?></span>
+  <span class="pill pill-nobill"><?= statusLabel('nobill') ?> (not a billing month)</span>
 </div>
 
 <div class="panel p-0 overflow-hidden">
@@ -114,7 +114,7 @@ pageTitle('Payment Grid', 'Companies in rows, months in columns. Click any bill 
     <table class="table grid-table align-middle mb-0">
       <thead>
         <tr>
-          <th class="sticky-col">Company</th>
+          <th class="sticky-col"><?= e(t('company')) ?></th>
           <?php for ($m = 1; $m <= 12; $m++): ?>
             <th class="<?= $year === (int)date('Y') && $m === (int)date('n') ? 'this-month' : '' ?>"><?= date('M', mktime(0, 0, 0, $m, 1)) ?></th>
           <?php endfor; ?>

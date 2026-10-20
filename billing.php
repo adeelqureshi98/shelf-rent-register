@@ -238,16 +238,104 @@ function expiringSoon(PDO $pdo): array
     return $st->fetchAll();
 }
 
-/** Human label for a status key. */
+/** Human label for a status key (translated when the language pack is loaded). */
 function statusLabel(string $s): string
 {
+    if (function_exists('t')) {
+        return t($s);
+    }
     return [
         'received' => 'Received',
         'partial'  => 'Partial',
         'due'      => 'Due',
         'overdue'  => 'Overdue',
         'awaited'  => 'Awaited',
+        'pending'  => 'Pending',
         'out'      => 'Out of Period',
         'nobill'   => 'No Bill',
     ][$s] ?? $s;
+}
+
+/* ============================================================
+ * Incentives — the register's second half. Same philosophy as
+ * bills: one read path (loadIncentives) feeds the incentives
+ * page, the dashboard panel, the company ledger and reports,
+ * so their numbers always agree.
+ *
+ * Status precedence mirrors billStatus():
+ *   awaited  — percentage incentive, actual amount not known yet
+ *   received — received in full
+ *   partial  — part received, balance still outstanding
+ *   overdue  — expected date passed, nothing received
+ *   pending  — expected date still ahead, nothing received
+ * (A partial incentive past its date is still labelled Partial —
+ * its remaining balance counts towards the overdue money total.)
+ * ============================================================ */
+function incentiveStatus(array $inc, ?string $today = null): string
+{
+    $today = $today ?? date('Y-m-d');
+    if ($inc['expected_amount'] === null) {
+        return 'awaited';
+    }
+    $expected = (float)$inc['expected_amount'];
+    $received = (float)$inc['received_amount'];
+    if ($received >= $expected - 0.005) {
+        return 'received';
+    }
+    if ($received > 0) {
+        return 'partial';
+    }
+    return $inc['expected_date'] < $today ? 'overdue' : 'pending';
+}
+
+/** All incentives (optionally one company's), decorated with 'status' + 'balance'. */
+function loadIncentives(PDO $pdo, ?int $agreementId = null): array
+{
+    $sql = 'SELECT i.*, a.supplier_name, a.ledger_code
+              FROM incentives i
+              JOIN agreements a ON a.id = i.agreement_id';
+    $args = [];
+    if ($agreementId !== null) {
+        $sql .= ' WHERE i.agreement_id = :ag';
+        $args[':ag'] = $agreementId;
+    }
+    $sql .= ' ORDER BY i.expected_date, i.id';
+    $st = $pdo->prepare($sql);
+    $st->execute($args);
+    $rows = $st->fetchAll();
+    $today = date('Y-m-d');
+    foreach ($rows as &$r) {
+        $r['status']  = incentiveStatus($r, $today);
+        $r['balance'] = $r['expected_amount'] === null
+            ? null
+            : max(0.0, (float)$r['expected_amount'] - (float)$r['received_amount']);
+    }
+    unset($r);
+    return $rows;
+}
+
+/**
+ * Incentive headline totals. "Overdue" here means money: the unpaid
+ * balance of every known-amount incentive whose expected date has
+ * passed (including part-paid ones). Awaited amounts never count
+ * as money — exactly like percentage bills.
+ */
+function incentiveTotals(PDO $pdo): array
+{
+    $tot = ['expected' => 0.0, 'received' => 0.0, 'overdue' => 0.0, 'awaited_count' => 0];
+    $today = date('Y-m-d');
+    foreach (loadIncentives($pdo) as $inc) {
+        if ($inc['expected_amount'] === null) {
+            $tot['awaited_count']++;
+            continue;
+        }
+        $expected = (float)$inc['expected_amount'];
+        $received = (float)$inc['received_amount'];
+        $tot['expected'] += $expected;
+        $tot['received'] += min($received, $expected);
+        if ($inc['expected_date'] < $today && $received < $expected - 0.005) {
+            $tot['overdue'] += $expected - $received;
+        }
+    }
+    return $tot;
 }

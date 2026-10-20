@@ -104,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         billing_frequency=:freq, period_from=:from, period_to=:to, scan_file=:scan, notes=:notes
                   WHERE id=:id'
             )->execute($data);
+            audit($pdo, 'update', 'agreement', $id, 'Updated agreement "' . $supplier . '" (' . $ledger . ').');
             flash('success', 'Agreement updated.');
         } else {
             $data[':by'] = currentUser()['id'];
@@ -113,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  VALUES (:supplier, :ledger, :cp, :ph, :type, :amount, :rate, :freq, :from, :to, :scan, :notes, :by)'
             )->execute($data);
             $id = (int)$pdo->lastInsertId();
+            audit($pdo, 'create', 'agreement', $id, 'Added agreement "' . $supplier . '" (' . $ledger . ').');
             flash('success', 'Agreement added. Its bills have been generated in the Payment Grid.');
         }
         syncBills($pdo);

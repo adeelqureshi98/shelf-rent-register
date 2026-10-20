@@ -47,8 +47,8 @@ foreach (loadBills($pdo) as $b) {
 $rows = array_values(array_filter($rows, fn($r) => $r['open_bills'] > 0));
 usort($rows, fn($a, $b) => ($b['overdue'] <=> $a['overdue']) ?: ($b['awaited'] <=> $a['awaited']) ?: ($b['due'] <=> $a['due']));
 
-layoutHead('Follow-up List', 'followups');
-pageTitle('Follow-up List', 'Companies to call, worst first. Overdue money and awaited percentage amounts in one view.');
+layoutHead(t('followup_list'), 'followups');
+pageTitle(t('followup_list'), 'Companies to call, worst first. Overdue money and awaited percentage amounts in one view.');
 ?>
 
 <div class="panel p-0 overflow-hidden">
@@ -71,7 +71,7 @@ pageTitle('Follow-up List', 'Companies to call, worst first. Overdue money and a
           <td class="text-end"><?= $r['due'] > 0 ? money($r['due']) : '—' ?></td>
           <td class="text-end"><?= $r['awaited'] > 0 ? $r['awaited'] . ' <span class="pill pill-awaited">Awaited</span>' : '—' ?></td>
           <td><?= $r['oldest_due'] ? date('d M Y', strtotime($r['oldest_due'])) : '—' ?></td>
-          <td class="text-end"><a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$r['agreement_id'] ?>">Open Ledger</a></td>
+          <td class="text-end"><a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$r['agreement_id'] ?>"><?= e(t('ledger')) ?></a></td>
         </tr>
       <?php endforeach; ?>
       </tbody>

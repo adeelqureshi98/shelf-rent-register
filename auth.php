@@ -17,6 +17,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/lang.php';
+
 function currentUser(): ?array
 {
     return $_SESSION['user'] ?? null;
@@ -94,6 +96,34 @@ function checkCsrf(): void
     if (!hash_equals($_SESSION['csrf'] ?? '', $sent)) {
         http_response_code(400);
         exit('Invalid form token. Please go back and try again.');
+    }
+}
+
+/* ---------------- audit trail ---------------- */
+/**
+ * Record one action in the audit_log table (who, what, when, from
+ * where). Deliberately never throws: auditing is best-effort and
+ * must not break the business action it describes — e.g. on a
+ * database that has not run upgrade_v2.sql yet.
+ */
+function audit(PDO $pdo, string $action, string $entity, ?int $entityId = null, string $details = ''): void
+{
+    try {
+        $u = currentUser();
+        $pdo->prepare(
+            'INSERT INTO audit_log (user_id, username, action, entity, entity_id, details, ip)
+             VALUES (:uid, :un, :a, :e, :eid, :d, :ip)'
+        )->execute([
+            ':uid' => $u['id'] ?? null,
+            ':un'  => $u['username'] ?? null,
+            ':a'   => $action,
+            ':e'   => $entity,
+            ':eid' => $entityId,
+            ':d'   => $details !== '' ? $details : null,
+            ':ip'  => $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    } catch (Throwable $ex) {
+        // Swallowed on purpose — see docblock.
     }
 }
 

@@ -2,11 +2,13 @@
 /**
  * Backup & Restore — Admin only.
  *
- * Export downloads a self-contained .sql file of the application's four
- * tables (one INSERT per row, so a restore can be replayed line by line).
- * Restore accepts only files produced by this export (marker checked),
- * wipes the four tables and replays the INSERT lines inside the file.
- * Uploaded scan files are not part of the SQL backup — copy the uploads/
+ * Export downloads a self-contained .sql file of the application's
+ * data tables (one INSERT per row, so a restore can be replayed line
+ * by line). Restore accepts only files produced by this export
+ * (marker checked), wipes those tables and replays the INSERT lines
+ * inside the file. The audit log is deliberately NOT part of the
+ * backup — an audit trail must not be restorable. Uploaded scan
+ * files are not part of the SQL backup either — copy the uploads/
  * folder separately when moving servers.
  */
 require_once __DIR__ . '/db.php';
@@ -16,12 +18,13 @@ requireRole(['admin']);
 $pdo = db();
 
 const BACKUP_MARKER = '-- SHELF-RENT-BACKUP v1';
-const BACKUP_TABLES = ['payments', 'bills', 'agreements', 'users']; // children first for restore deletes
+const BACKUP_TABLES = ['payments', 'bills', 'incentives', 'reminder_log', 'agreements', 'users']; // children first for restore deletes
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'export') {
     checkCsrf();
+    audit($pdo, 'export', 'backup', null, 'Downloaded a .sql backup.');
     $out = [BACKUP_MARKER, '-- ' . APP_NAME . ' — exported ' . date('Y-m-d H:i:s'), 'SET FOREIGN_KEY_CHECKS=0;'];
-    foreach (['users', 'agreements', 'bills', 'payments'] as $table) {
+    foreach (['users', 'agreements', 'bills', 'payments', 'incentives', 'reminder_log'] as $table) {
         $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll();
         $out[] = "-- Table: $table (" . count($rows) . ' rows)';
         foreach ($rows as $row) {
@@ -63,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resto
                     }
                 }
                 $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+                audit($pdo, 'restore', 'backup', null, "Restored a backup — $count records were loaded.");
                 flash('success', "Backup restored — $count records were loaded. Please sign in again.");
                 // Restoring users may have replaced the current account: sign out.
                 $_SESSION = [];
@@ -80,19 +84,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resto
 }
 
 $counts = [];
-foreach (['users', 'agreements', 'bills', 'payments'] as $t) {
+foreach (['users', 'agreements', 'bills', 'payments', 'incentives', 'reminder_log'] as $t) {
     $counts[$t] = (int)$pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn();
 }
 
-layoutHead('Backup & Restore', 'backup');
-pageTitle('Backup & Restore', 'Admin only. Export a full copy of the register, or restore one.');
+layoutHead(t('backup_restore'), 'backup');
+pageTitle(t('backup_restore'), 'Admin only. Export a full copy of the register, or restore one.');
 ?>
 
 <div class="row g-3">
   <div class="col-md-6">
     <div class="panel h-100">
       <h2 class="panel-title"><i class="bi bi-download me-2"></i>Export Backup</h2>
-      <p>Downloads one <strong>.sql</strong> file containing every user, agreement, bill and payment:</p>
+      <p>Downloads one <strong>.sql</strong> file containing every user, agreement, bill, payment, incentive and reminder-log entry:</p>
       <ul class="mb-3">
         <?php foreach ($counts as $t => $n): ?><li><?= ucfirst($t) ?>: <strong><?= $n ?></strong> record(s)</li><?php endforeach; ?>
       </ul>

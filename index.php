@@ -10,6 +10,7 @@ syncBills($pdo);
 $tot      = headlineTotals($pdo);
 $follow   = followUps($pdo);
 $expiring = expiringSoon($pdo);
+$incTot   = incentiveTotals($pdo);
 
 /* Monthly expected vs received for the current year (chart). */
 $year  = (int)date('Y');
@@ -41,15 +42,15 @@ $recent = $pdo->query(
       LIMIT 8'
 )->fetchAll();
 
-layoutHead('Dashboard', 'index');
-pageTitle('Dashboard', 'The whole shelf-rent picture at a glance — billed to date, ' . date('F Y') . '.');
+layoutHead(t('dashboard'), 'index');
+pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed to date, ' . date('F Y') . '.');
 ?>
 
 <div class="row g-3 mb-4">
   <div class="col-md-6 col-xl-3">
     <div class="stat-card">
       <div class="stat-icon gold"><i class="bi bi-receipt"></i></div>
-      <div class="stat-label">Total Expected</div>
+      <div class="stat-label"><?= e(t('total_expected')) ?></div>
       <div class="stat-value"><?= money($tot['expected']) ?></div>
       <div class="stat-note">Billed to date (known amounts)</div>
     </div>
@@ -57,7 +58,7 @@ pageTitle('Dashboard', 'The whole shelf-rent picture at a glance — billed to d
   <div class="col-md-6 col-xl-3">
     <div class="stat-card">
       <div class="stat-icon green"><i class="bi bi-cash-stack"></i></div>
-      <div class="stat-label">Total Received</div>
+      <div class="stat-label"><?= e(t('total_received')) ?></div>
       <div class="stat-value"><?= money($tot['received']) ?></div>
       <div class="stat-note"><?= $tot['expected'] > 0 ? number_format($tot['received'] / $tot['expected'] * 100, 1) : '0.0' ?>% recovery so far</div>
     </div>
@@ -65,7 +66,7 @@ pageTitle('Dashboard', 'The whole shelf-rent picture at a glance — billed to d
   <div class="col-md-6 col-xl-3">
     <div class="stat-card danger">
       <div class="stat-icon red"><i class="bi bi-exclamation-octagon"></i></div>
-      <div class="stat-label">Total Overdue</div>
+      <div class="stat-label"><?= e(t('total_overdue')) ?></div>
       <div class="stat-value"><?= money($tot['overdue']) ?></div>
       <div class="stat-note"><?= $tot['overdue_bills'] ?> bill(s) past due · <?= $tot['companies_owing'] ?> company(ies) owing</div>
     </div>
@@ -73,7 +74,7 @@ pageTitle('Dashboard', 'The whole shelf-rent picture at a glance — billed to d
   <div class="col-md-6 col-xl-3">
     <div class="stat-card">
       <div class="stat-icon plum"><i class="bi bi-hourglass-split"></i></div>
-      <div class="stat-label">Awaited Amounts</div>
+      <div class="stat-label"><?= e(t('awaited_amounts')) ?></div>
       <div class="stat-value"><?= $tot['awaited_count'] ?></div>
       <div class="stat-note">Percentage bills waiting for the actual amount · <?= money($tot['due']) ?> still due (not yet late)</div>
     </div>
@@ -105,8 +106,8 @@ pageTitle('Dashboard', 'The whole shelf-rent picture at a glance — billed to d
 
     <div class="panel mt-3">
       <div class="panel-head">
-        <h2><i class="bi bi-telephone-outbound me-2"></i>Follow-up Needed</h2>
-        <a class="btn btn-sm btn-outline-gold" href="followups.php">Open calling list</a>
+        <h2><i class="bi bi-telephone-outbound me-2"></i><?= e(t('followup_needed')) ?></h2>
+        <a class="btn btn-sm btn-outline-gold" href="followups.php"><?= e(t('open_calling_list')) ?></a>
       </div>
       <?php if (!$follow): ?>
         <p class="empty-note">Nothing outstanding. Every billed company is up to date.</p>
@@ -122,7 +123,7 @@ pageTitle('Dashboard', 'The whole shelf-rent picture at a glance — billed to d
                 <td class="text-end fw-semibold text-danger"><?= $f['overdue'] > 0 ? money($f['overdue']) : '—' ?></td>
                 <td class="text-end"><?= $f['due'] > 0 ? money($f['due']) : '—' ?></td>
                 <td><?= $f['oldest_due'] ? date('d M Y', strtotime($f['oldest_due'])) : '—' ?></td>
-                <td class="text-end"><a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$f['agreement_id'] ?>">Ledger</a></td>
+                <td class="text-end"><a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$f['agreement_id'] ?>"><?= e(t('ledger')) ?></a></td>
               </tr>
             <?php endforeach; ?>
             </tbody>
@@ -172,6 +173,19 @@ pageTitle('Dashboard', 'The whole shelf-rent picture at a glance — billed to d
         <?php endforeach; ?>
         </ul>
       <?php endif; ?>
+    </div>
+
+    <div class="panel mt-3">
+      <div class="panel-head">
+        <h2><i class="bi bi-gift me-2"></i><?= e(t('incentives')) ?></h2>
+        <a class="btn btn-sm btn-outline-gold" href="incentives.php"><?= e(t('view_all')) ?></a>
+      </div>
+      <div class="row g-2">
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('total_expected')) ?></span><strong><?= money($incTot['expected']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('total_received')) ?></span><strong><?= money($incTot['received']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('total_overdue')) ?></span><strong class="<?= $incTot['overdue'] > 0 ? 'text-danger' : '' ?>"><?= money($incTot['overdue']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('awaited_amounts')) ?></span><strong><?= $incTot['awaited_count'] ?></strong></div></div>
+      </div>
     </div>
   </div>
 </div>

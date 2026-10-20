@@ -111,6 +111,7 @@ a:hover { color: var(--gold-dark); text-decoration: underline; }
 .pill-out      { background: #efeae2; color: #9a8b76; border-color: #ddd2bf;
                  background-image: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 4px, transparent 4px 8px); }
 .pill-nobill   { background: transparent; color: #b3a58d; border-color: #e2d8c4; border-style: dashed; }
+.pill-pending  { background: #e3ecfa; color: #274b8f; border-color: #c4d6f5; }
 .pill-role-admin { background: #f6e8bd; color: #6d5410; border-color: #e7d28a; }
 .pill-role-accountant { background: #e3ecfa; color: #274b8f; border-color: #c4d6f5; }
 .pill-role-viewer { background: #efeae2; color: #7a6c58; border-color: #ddd2bf; }
@@ -220,6 +221,48 @@ a:hover { color: var(--gold-dark); text-decoration: underline; }
   .side-link { justify-content: center; }
   .content { padding: 20px 14px 32px; }
 }
+
+/* ---------- language switch (sidebar) ---------- */
+.lang-switch {
+  margin-top: auto; padding: 14px 8px 0; display: flex; align-items: center; gap: 8px;
+  font-size: 13px; border-top: 1px solid rgba(201,162,39,.25);
+}
+.lang-switch + .side-user { margin-top: 0; }
+.lang-switch a { color: #e9dcbd; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
+.lang-switch a:hover { color: #fff; text-decoration: none; background: rgba(201,162,39,.12); }
+.lang-switch a.active { background: linear-gradient(90deg, rgba(201,162,39,.28), rgba(201,162,39,.08)); color: #fff; }
+.lang-sep { color: rgba(233,220,189,.4); }
+.lang-switch-login { text-align: center; margin-top: 14px; font-size: 13px; }
+.lang-switch-login a { color: #8a6d1f; font-weight: 600; }
+.lang-switch-login a.active { text-decoration: underline; }
+
+/* ---------- Urdu mode (RTL + Nastaliq) ----------
+   UI chrome only: data values are never translated, and Latin
+   digits stay in the amounts so figures remain easy to read.
+   Nastaliq glyphs are much taller than Latin, so line-heights
+   are raised generously to stop ascenders/descenders clipping. */
+html[lang="ur"] body,
+html[lang="ur"] input,
+html[lang="ur"] select,
+html[lang="ur"] textarea,
+html[lang="ur"] button {
+  font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Inter', serif;
+}
+html[lang="ur"] h1, html[lang="ur"] h2, html[lang="ur"] h3,
+html[lang="ur"] .brand-name, html[lang="ur"] .stat-value, html[lang="ur"] .year-label {
+  font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', Georgia, serif;
+}
+html[lang="ur"] body { line-height: 2; }
+html[lang="ur"] h1, html[lang="ur"] h2, html[lang="ur"] h3, html[lang="ur"] h5 { line-height: 2; }
+html[lang="ur"] .page-head h1 { padding-top: 10px; }
+html[lang="ur"] .side-link { line-height: 2; padding-top: 6px; padding-bottom: 6px; }
+html[lang="ur"] .pill { line-height: 1.9; padding-top: 0; padding-bottom: 2px; }
+html[lang="ur"] .btn { line-height: 1.9; }
+html[lang="ur"] .stat-label { letter-spacing: 0; }
+html[lang="ur"] .table-luxe thead th { letter-spacing: 0; }
+html[lang="ur"] .form-label { line-height: 1.9; }
+html[lang="ur"] .page-head p { line-height: 2; }
+html[lang="ur"] .stat-value { line-height: 1.6; padding: 6px 0; }
 
 /* ---------- print: clean paper output ---------- */
 @media print {

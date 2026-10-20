@@ -7,28 +7,32 @@ require_once __DIR__ . '/auth.php';
 function layoutHead(string $title, string $active): void
 {
     $u = currentUser();
+    $lang = appLang();
     $roleLabel = ['admin' => 'Administrator', 'accountant' => 'Accountant', 'viewer' => 'Viewer'][$u['role']] ?? $u['role'];
     $nav = [
-        'index'      => ['index.php',      'bi-grid-1x2-fill',  'Dashboard'],
-        'grid'       => ['grid.php',       'bi-calendar3',      'Payment Grid'],
-        'agreements' => ['agreements.php', 'bi-file-earmark-text-fill', 'Agreements'],
-        'reports'    => ['reports.php',    'bi-bar-chart-fill', 'Reports'],
-        'followups'  => ['followups.php',  'bi-telephone-fill', 'Follow-ups'],
+        'index'      => ['index.php',      'bi-grid-1x2-fill',  t('dashboard')],
+        'grid'       => ['grid.php',       'bi-calendar3',      t('payment_grid')],
+        'agreements' => ['agreements.php', 'bi-file-earmark-text-fill', t('agreements')],
+        'incentives' => ['incentives.php', 'bi-gift-fill',      t('incentives')],
+        'reminders'  => ['reminders.php',  'bi-bell-fill',      t('reminders')],
+        'reports'    => ['reports.php',    'bi-bar-chart-fill', t('reports')],
+        'followups'  => ['followups.php',  'bi-telephone-fill', t('followups')],
     ];
     if (isAdmin()) {
-        $nav['users']  = ['users.php',  'bi-people-fill',  'Users'];
-        $nav['backup'] = ['backup.php', 'bi-database-fill-down', 'Backup & Restore'];
+        $nav['users']  = ['users.php',  'bi-people-fill',  t('users')];
+        $nav['audit']  = ['audit.php',  'bi-journal-text', t('audit_log')];
+        $nav['backup'] = ['backup.php', 'bi-database-fill-down', t('backup_restore')];
     }
     ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e($lang) ?>" dir="<?= $lang === 'ur' ? 'rtl' : 'ltr' ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($title) ?> · <?= e(cfg('app_name')) ?></title>
 <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
 <link href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
 <link href="assets/css/app.css" rel="stylesheet">
 </head>
 <body>
@@ -48,13 +52,18 @@ function layoutHead(string $title, string $active): void
         </a>
       <?php endforeach; ?>
     </nav>
+    <div class="lang-switch no-print">
+      <a href="<?= e(langUrl('en')) ?>" class="<?= $lang === 'en' ? 'active' : '' ?>">EN</a>
+      <span class="lang-sep">|</span>
+      <a href="<?= e(langUrl('ur')) ?>" class="<?= $lang === 'ur' ? 'active' : '' ?>">اردو</a>
+    </div>
     <div class="side-user">
       <div class="avatar"><?= e(strtoupper(substr($u['name'], 0, 1))) ?></div>
       <div class="flex-grow-1">
         <div class="side-user-name"><?= e($u['name']) ?></div>
         <div class="side-user-role"><?= e($roleLabel) ?></div>
       </div>
-      <a class="logout" href="logout.php" title="Sign out"><i class="bi bi-box-arrow-right"></i></a>
+      <a class="logout" href="logout.php" title="<?= e(t('sign_out')) ?>"><i class="bi bi-box-arrow-right"></i></a>
     </div>
   </aside>
   <main class="content">
@@ -82,7 +91,7 @@ function pageTitle(string $title, string $sub = ''): void
 {
     echo '<div class="page-head"><h1>' . e($title) . '</h1>';
     if ($sub !== '') {
-        echo '<p>' . e($sub) . '</p>';
+        echo '<p dir="auto">' . e($sub) . '</p>';
     }
     echo '</div>';
 }

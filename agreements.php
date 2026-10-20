@@ -11,11 +11,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     requireRole(['admin']);
     checkCsrf();
     $id = (int)($_POST['id'] ?? 0);
-    $st = $pdo->prepare('SELECT scan_file FROM agreements WHERE id = :id');
+    $st = $pdo->prepare('SELECT scan_file, supplier_name, ledger_code FROM agreements WHERE id = :id');
     $st->execute([':id' => $id]);
     $row = $st->fetch();
     if ($row) {
         $pdo->prepare('DELETE FROM agreements WHERE id = :id')->execute([':id' => $id]);
+        audit($pdo, 'delete', 'agreement', $id, 'Deleted agreement "' . $row['supplier_name'] . '" (' . $row['ledger_code'] . ') with all its bills and payments.');
         if ($row['scan_file']) {
             $path = UPLOAD_DIR . '/' . basename($row['scan_file']);
             if (is_file($path)) unlink($path);
@@ -60,8 +61,8 @@ $rows = $st->fetchAll();
 $today = date('Y-m-d');
 $limit = date('Y-m-d', strtotime('+' . EXPIRY_WARN_DAYS . ' days'));
 
-layoutHead('Agreements', 'agreements');
-pageTitle('Agreements', 'Every supplier shelf-rent agreement on record.');
+layoutHead(t('agreements'), 'agreements');
+pageTitle(t('agreements'), 'Every supplier shelf-rent agreement on record.');
 ?>
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -87,10 +88,10 @@ pageTitle('Agreements', 'Every supplier shelf-rent agreement on record.');
       <option value="soon" <?= $expiry === 'soon' ? 'selected' : '' ?>>Expiring in <?= EXPIRY_WARN_DAYS ?> days</option>
       <option value="expired" <?= $expiry === 'expired' ? 'selected' : '' ?>>Expired</option>
     </select>
-    <button class="btn btn-gold" type="submit">Filter</button>
+    <button class="btn btn-gold" type="submit"><?= e(t('filter')) ?></button>
   </form>
   <?php if (canWrite()): ?>
-    <a class="btn btn-gold" href="agreement_form.php"><i class="bi bi-plus-lg me-1"></i> Add Agreement</a>
+    <a class="btn btn-gold" href="agreement_form.php"><i class="bi bi-plus-lg me-1"></i> <?= e(t('add_agreement')) ?></a>
   <?php endif; ?>
 </div>
 
@@ -128,16 +129,16 @@ pageTitle('Agreements', 'Every supplier shelf-rent agreement on record.');
             <?php else: ?><span class="cell-sub">—</span><?php endif; ?>
           </td>
           <td class="text-end text-nowrap">
-            <a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$ag['id'] ?>">Ledger</a>
+            <a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$ag['id'] ?>"><?= e(t('ledger')) ?></a>
             <?php if (canWrite()): ?>
-              <a class="btn btn-sm btn-light border" href="agreement_form.php?id=<?= (int)$ag['id'] ?>">Edit</a>
+              <a class="btn btn-sm btn-light border" href="agreement_form.php?id=<?= (int)$ag['id'] ?>"><?= e(t('edit')) ?></a>
             <?php endif; ?>
             <?php if (isAdmin()): ?>
               <form method="post" class="d-inline" onsubmit="return confirm('Delete this agreement? Its bills and payments will also be deleted. This cannot be undone.');">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="id" value="<?= (int)$ag['id'] ?>">
-                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                <button class="btn btn-sm btn-outline-danger" type="submit"><?= e(t('delete')) ?></button>
               </form>
             <?php endif; ?>
           </td>

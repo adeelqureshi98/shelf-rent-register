@@ -22,6 +22,21 @@ questions instantly:
 |---|---|
 | ![Sign In](screenshots/login.png) | ![Reports](screenshots/reports.png) |
 
+| Incentives | Reminders |
+|---|---|
+| ![Incentives](screenshots/incentives.png) | ![Reminders](screenshots/reminders.png) |
+| Promotion / display / launch money on top of rent, with the same status engine | Overdue + due-soon items with one-click WhatsApp and email reminders |
+
+| Supplier Statement | Audit Log |
+|---|---|
+| ![Supplier Statement](screenshots/statement.png) | ![Audit Log](screenshots/audit.png) |
+| Accounts-style statement with running balance, print / PDF clean | Who did what, and when (Admin only) |
+
+| Dashboard in Urdu (RTL) |
+|---|
+| ![Dashboard in Urdu](screenshots/dashboard-urdu.png) |
+| Full EN/اردو toggle — UI chrome translated, figures unchanged |
+
 ## Features
 
 - **Dashboard** — total expected / received / overdue, recovery %, monthly
@@ -42,8 +57,28 @@ questions instantly:
   stay **Awaited** — never shown as a false overdue figure — until staff enter
   the actual billed amount. One shared engine feeds the dashboard, grid and
   reports, so every total agrees.
-- **Reports** — monthly recovery (expected vs received) and an overdue
-  summary by company, both print-clean.
+- **Incentives** — promotion / display / launch / target money suppliers
+  owe on top of rent. Fixed or percentage basis (percentage stays
+  **Awaited** until the actual amount is known), part-received supported,
+  with its own dashboard panel and per-company ledger section.
+- **Reports hub** — monthly recovery, overdue by company, company-wise
+  summary, aging report (0–30 / 31–60 / 61–90 / 90+ days), payment-method
+  summary, incentive report and expiring agreements (30/60/90 days) —
+  **every report downloadable as CSV**, all print-clean.
+- **Supplier statements** — accounts-style statement per company and
+  period: opening balance, bills and payments in date order with a
+  running balance, closing balance. Print / Save-as-PDF ready.
+- **Reminders** — overdue and due-soon bills + incentives with one-click
+  WhatsApp (pre-written `wa.me` message) and email reminders, a sent-log,
+  and a schedulable CLI script (`cron_reminders.php`) that emails due
+  reminders automatically. (Background WhatsApp needs the WhatsApp
+  Business API; here it is one-click by design.)
+- **Audit log** — logins, payments, agreements, users, incentives,
+  backups and reminder sends, recorded with user, IP and timestamp;
+  Admin-only, filterable.
+- **Urdu language toggle** — switch the whole interface between English
+  and Urdu (full RTL, Nastaliq type) from the sidebar; data values and
+  figures stay identical.
 - **Printable payment receipt** after every recorded payment.
 - **Follow-up calling list** — companies sorted by overdue amount, with
   contact names and phone numbers.
@@ -97,19 +132,28 @@ agreements.php       Agreement list + filters + delete
 agreement_form.php   Add / edit agreement (+ scan upload)
 company.php          Company ledger (agreement, bills, payments)
 receipt.php          Printable payment receipt
-reports.php          Monthly recovery + overdue summary
+statement.php        Supplier statement (printable, running balance)
+reports.php          Reports hub (8 reports, all with CSV downloads)
+reports_export.php   CSV export for every report
 followups.php        Follow-up calling list
+incentives.php       Incentive list + totals (+ delete, Admin)
+incentive_form.php   Add / edit incentive
+reminders.php        Reminder centre — WhatsApp/email + sent log
+cron_reminders.php   CLI-only automatic email reminders (schedule it)
+audit.php            Audit log viewer (Admin)
 payment_action.php   All payment write actions (server-side checks)
 users.php            User management (Admin)
 backup.php           Backup export / restore (Admin)
 login.php logout.php Authentication
-billing.php          Billing engine — bills, statuses, totals
-auth.php             Sessions, role guards, CSRF, escaping
+billing.php          Billing + incentive engines — statuses, totals
+auth.php             Sessions, role guards, CSRF, escaping, audit()
+lang.php             EN/Urdu dictionary + language toggle
 db.php config.php    PDO connection + all settings (DB_* constants)
-layout.php           Shared luxury sidebar layout
+layout.php           Shared luxury sidebar layout (RTL-aware)
 assets/css/app.css   Theme (espresso + gold + ivory)
 uploads/             Scanned agreements (PHP execution disabled)
-database.sql         Schema + default users + sample data
+database.sql         Schema + default users + sample data (fresh install)
+upgrade_v2.sql       v1 → v2 upgrade (existing installs only)
 ```
 
 ## Sample data at a glance
@@ -118,3 +162,7 @@ Five suppliers cover every case: monthly fixed (with a partial payment and
 overdue months), quarterly fixed (one quarter overdue), a Display Drive
 agreement (single end-of-period bill), a percentage agreement (Awaited bills,
 two months entered and paid) and a short agreement expiring within 30 days.
+Each supplier also carries one sample incentive — Received, Overdue, Pending,
+Awaited and Partial — with hand-checkable totals (expected Rs 455,000 ·
+received Rs 115,000 · overdue Rs 140,000 · awaited 1). Already running v1?
+Import `upgrade_v2.sql` instead — see README_SETUP.md.

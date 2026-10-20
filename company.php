@@ -42,6 +42,7 @@ foreach ($bills as $b) {
     }
 }
 
+$incs  = loadIncentives($pdo, $id);
 $back  = 'company.php?id=' . $id;
 $write = canWrite();
 
@@ -61,6 +62,7 @@ layoutHead($ag['supplier_name'], 'agreements');
     </p>
   </div>
   <div class="d-flex gap-2">
+    <a class="btn btn-light border" target="_blank" href="statement.php?id=<?= $id ?>"><i class="bi bi-printer me-1"></i> <?= e(t('supplier_statement')) ?></a>
     <a class="btn btn-light border" href="grid.php?year=<?= date('Y') ?>&q=<?= urlencode($ag['ledger_code']) ?>">View in Grid</a>
     <?php if ($write): ?>
       <a class="btn btn-gold" href="agreement_form.php?id=<?= $id ?>">Edit Agreement</a>
@@ -73,9 +75,9 @@ layoutHead($ag['supplier_name'], 'agreements');
 <?php endif; ?>
 
 <div class="row g-3 mb-3">
-  <div class="col-md-4"><div class="stat-card"><div class="stat-label">Total Expected</div><div class="stat-value"><?= money($sumExpected) ?></div></div></div>
-  <div class="col-md-4"><div class="stat-card"><div class="stat-label">Total Received</div><div class="stat-value"><?= money($sumPaid) ?></div></div></div>
-  <div class="col-md-4"><div class="stat-card danger"><div class="stat-label">Overdue Balance</div><div class="stat-value"><?= money($sumOverdue) ?></div></div></div>
+  <div class="col-md-4"><div class="stat-card"><div class="stat-label"><?= e(t('total_expected')) ?></div><div class="stat-value"><?= money($sumExpected) ?></div></div></div>
+  <div class="col-md-4"><div class="stat-card"><div class="stat-label"><?= e(t('total_received')) ?></div><div class="stat-value"><?= money($sumPaid) ?></div></div></div>
+  <div class="col-md-4"><div class="stat-card danger"><div class="stat-label"><?= e(t('overdue_balance')) ?></div><div class="stat-value"><?= money($sumOverdue) ?></div></div></div>
 </div>
 
 <div class="panel p-0 overflow-hidden">
@@ -178,6 +180,35 @@ layoutHead($ag['supplier_name'], 'agreements');
               </div>
             </div>
           </td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel mt-3 p-0 overflow-hidden">
+  <div class="panel-head px-4 pt-3">
+    <h2><i class="bi bi-gift me-2"></i><?= e(t('incentives')) ?></h2>
+    <?php if ($write): ?>
+      <a class="btn btn-sm btn-gold" href="incentive_form.php"><i class="bi bi-plus-lg me-1"></i> <?= e(t('add_incentive')) ?></a>
+    <?php endif; ?>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-luxe align-middle mb-0">
+      <thead><tr><th>Incentive</th><th class="text-end"><?= e(t('expected')) ?></th><th class="text-end"><?= e(t('received')) ?></th><th class="text-end"><?= e(t('balance')) ?></th><th>Expected date</th><th><?= e(t('status')) ?></th></tr></thead>
+      <tbody>
+      <?php if (!$incs): ?>
+        <tr><td colspan="6" class="text-center py-3 text-muted">No incentives recorded for this company yet.</td></tr>
+      <?php endif; ?>
+      <?php foreach ($incs as $inc): ?>
+        <tr>
+          <td><?= e($inc['title']) ?><div class="cell-sub"><?= e($inc['type']) ?> · <?= $inc['basis'] === 'Percentage' ? 'Percentage @ ' . e($inc['rate']) . '%' : 'Fixed' ?></div></td>
+          <td class="text-end"><?= $inc['expected_amount'] === null ? '<span class="text-muted">Awaited</span>' : money($inc['expected_amount']) ?></td>
+          <td class="text-end"><?= money($inc['received_amount']) ?></td>
+          <td class="text-end"><?= $inc['balance'] === null ? '—' : money($inc['balance']) ?></td>
+          <td><?= date('d M Y', strtotime($inc['expected_date'])) ?></td>
+          <td><span class="pill pill-<?= $inc['status'] ?>"><?= statusLabel($inc['status']) ?></span></td>
         </tr>
       <?php endforeach; ?>
       </tbody>
