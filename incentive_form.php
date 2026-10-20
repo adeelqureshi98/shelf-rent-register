@@ -102,13 +102,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-layoutHead($id ? 'Edit Incentive' : t('add_incentive'), 'incentives');
-pageTitle($id ? 'Edit Incentive' : t('add_incentive'), 'Money a supplier owes on top of rent: promotions, displays, launches, targets.');
+layoutHead($id ? t('edit_incentive') : t('add_incentive'), 'incentives');
+pageTitle($id ? t('edit_incentive') : t('add_incentive'), t('incentive_form_subtitle'));
 ?>
 
 <?php if ($errors): ?>
   <div class="alert alert-danger shadow-sm">
-    <strong>Please fix the following:</strong>
+    <strong><?= e(t('please_fix')) ?></strong>
     <ul class="mb-0 mt-1">
       <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
     </ul>
@@ -119,21 +119,21 @@ pageTitle($id ? 'Edit Incentive' : t('add_incentive'), 'Money a supplier owes on
   <form method="post" class="row g-3" novalidate>
     <?= csrfField() ?>
     <div class="col-md-6">
-      <label class="form-label" for="agreement_id">Company *</label>
+      <label class="form-label" for="agreement_id"><?= e(t('company')) ?> *</label>
       <select class="form-select" id="agreement_id" name="agreement_id" required>
-        <option value="">— Choose company —</option>
+        <option value=""><?= e(t('choose_company')) ?></option>
         <?php foreach ($agreements as $ag): ?>
           <option value="<?= (int)$ag['id'] ?>" <?= (string)$old['agreement_id'] === (string)$ag['id'] ? 'selected' : '' ?>><?= e($ag['supplier_name']) ?> (<?= e($ag['ledger_code']) ?>)</option>
         <?php endforeach; ?>
       </select>
     </div>
     <div class="col-md-6">
-      <label class="form-label" for="title">Incentive title *</label>
+      <label class="form-label" for="title"><?= e(t('incentive_title')) ?> *</label>
       <input class="form-control" id="title" name="title" required value="<?= e($old['title']) ?>" placeholder="e.g. Diwali Promotion Incentive">
     </div>
 
     <div class="col-md-4">
-      <label class="form-label" for="type">Type *</label>
+      <label class="form-label" for="type"><?= e(t('type')) ?> *</label>
       <select class="form-select" id="type" name="type">
         <?php foreach (['Promotion', 'Display', 'Launch', 'Target', 'Other'] as $tp): ?>
           <option value="<?= $tp ?>" <?= $old['type'] === $tp ? 'selected' : '' ?>><?= $tp ?></option>
@@ -141,37 +141,37 @@ pageTitle($id ? 'Edit Incentive' : t('add_incentive'), 'Money a supplier owes on
       </select>
     </div>
     <div class="col-md-4">
-      <label class="form-label" for="basis">Basis *</label>
+      <label class="form-label" for="basis"><?= e(t('basis')) ?> *</label>
       <select class="form-select" id="basis" name="basis">
-        <option value="Fixed" <?= $old['basis'] === 'Fixed' ? 'selected' : '' ?>>Fixed amount</option>
-        <option value="Percentage" <?= $old['basis'] === 'Percentage' ? 'selected' : '' ?>>Percentage of sales</option>
+        <option value="Fixed" <?= $old['basis'] === 'Fixed' ? 'selected' : '' ?>><?= e(t('fixed_amount')) ?></option>
+        <option value="Percentage" <?= $old['basis'] === 'Percentage' ? 'selected' : '' ?>><?= e(t('percentage_of_sales')) ?></option>
       </select>
     </div>
     <div class="col-md-4" id="rateWrap">
-      <label class="form-label" for="rate">Percentage rate (%) *</label>
+      <label class="form-label" for="rate"><?= e(t('percentage_rate')) ?> *</label>
       <input type="number" step="0.01" min="0" max="100" class="form-control" id="rate" name="rate" value="<?= e($old['rate']) ?>">
-      <div class="form-text">Leave the expected amount empty while the actual figure is awaited.</div>
+      <div class="form-text"><?= e(t('rate_awaited_note')) ?></div>
     </div>
 
     <div class="col-md-4">
-      <label class="form-label" for="expected_amount">Expected amount (<?= e(CURRENCY) ?>)</label>
+      <label class="form-label" for="expected_amount"><?= e(t('expected_amount')) ?> (<?= e(CURRENCY) ?>)</label>
       <input type="number" step="0.01" min="0" class="form-control" id="expected_amount" name="expected_amount" value="<?= e($old['expected_amount']) ?>" placeholder="Required for Fixed">
     </div>
     <div class="col-md-4">
-      <label class="form-label" for="received_amount">Received so far (<?= e(CURRENCY) ?>)</label>
+      <label class="form-label" for="received_amount"><?= e(t('received_so_far')) ?> (<?= e(CURRENCY) ?>)</label>
       <input type="number" step="0.01" min="0" class="form-control" id="received_amount" name="received_amount" value="<?= e($old['received_amount']) ?>">
     </div>
     <div class="col-md-4">
-      <label class="form-label" for="expected_date">Expected date *</label>
+      <label class="form-label" for="expected_date"><?= e(t('expected_date')) ?> *</label>
       <input type="date" class="form-control" id="expected_date" name="expected_date" required value="<?= e($old['expected_date']) ?>">
     </div>
 
     <div class="col-md-4">
-      <label class="form-label" for="received_date">Received date (when fully received)</label>
+      <label class="form-label" for="received_date"><?= e(t('received_date_label')) ?></label>
       <input type="date" class="form-control" id="received_date" name="received_date" value="<?= e($old['received_date']) ?>">
     </div>
     <div class="col-md-8">
-      <label class="form-label" for="notes">Notes</label>
+      <label class="form-label" for="notes"><?= e(t('notes')) ?></label>
       <input class="form-control" id="notes" name="notes" value="<?= e($old['notes']) ?>" placeholder="Terms, promises, references">
     </div>
 

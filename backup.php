@@ -89,36 +89,36 @@ foreach (['users', 'agreements', 'bills', 'payments', 'incentives', 'reminder_lo
 }
 
 layoutHead(t('backup_restore'), 'backup');
-pageTitle(t('backup_restore'), 'Admin only. Export a full copy of the register, or restore one.');
+pageTitle(t('backup_restore'), t('backup_subtitle'));
 ?>
 
 <div class="row g-3">
   <div class="col-md-6">
     <div class="panel h-100">
-      <h2 class="panel-title"><i class="bi bi-download me-2"></i>Export Backup</h2>
-      <p>Downloads one <strong>.sql</strong> file containing every user, agreement, bill, payment, incentive and reminder-log entry:</p>
+      <h2 class="panel-title"><i class="bi bi-download me-2"></i><?= e(t('export_backup')) ?></h2>
+      <p><?= e(t('export_desc_1')) ?><strong>.sql</strong><?= e(t('export_desc_2')) ?></p>
       <ul class="mb-3">
-        <?php foreach ($counts as $t => $n): ?><li><?= ucfirst($t) ?>: <strong><?= $n ?></strong> record(s)</li><?php endforeach; ?>
+        <?php foreach ($counts as $t => $n): ?><li><?= e(t('tbl_' . $t)) ?>: <strong><?= $n ?></strong> <?= e(t('records_word')) ?></li><?php endforeach; ?>
       </ul>
       <form method="post">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="export">
-        <button class="btn btn-gold" type="submit"><i class="bi bi-file-earmark-arrow-down me-1"></i> Download Backup (.sql)</button>
+        <button class="btn btn-gold" type="submit"><i class="bi bi-file-earmark-arrow-down me-1"></i> <?= e(t('download_backup')) ?></button>
       </form>
-      <p class="cell-sub mt-3 mb-0">Scanned agreement files live in the <code>uploads/</code> folder — copy that folder separately when moving servers.</p>
+      <p class="cell-sub mt-3 mb-0"><?= e(t('scan_files_note_1')) ?><code>uploads/</code><?= e(t('scan_files_note_2')) ?></p>
     </div>
   </div>
   <div class="col-md-6">
     <div class="panel h-100 danger-zone">
-      <h2 class="panel-title"><i class="bi bi-upload me-2"></i>Restore Backup</h2>
-      <p><strong class="text-danger">Warning:</strong> restoring replaces ALL current data with the backup's data, and signs you out. Only files exported by this system are accepted.</p>
-      <form method="post" enctype="multipart/form-data" onsubmit="return confirm('This will replace ALL current data with the backup. Continue?');">
+      <h2 class="panel-title"><i class="bi bi-upload me-2"></i><?= e(t('restore_backup')) ?></h2>
+      <p><strong class="text-danger"><?= e(t('warning_label')) ?></strong> <?= e(t('restore_warning')) ?></p>
+      <form method="post" enctype="multipart/form-data" onsubmit="return confirm(<?= json_encode(t('restore_confirm')) ?>);">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="restore">
         <div class="mb-3">
           <input type="file" class="form-control" name="backup" accept=".sql" required>
         </div>
-        <button class="btn btn-outline-danger" type="submit"><i class="bi bi-database-up me-1"></i> Restore This Backup</button>
+        <button class="btn btn-outline-danger" type="submit"><i class="bi bi-database-up me-1"></i> <?= e(t('restore_this_backup')) ?></button>
       </form>
     </div>
   </div>

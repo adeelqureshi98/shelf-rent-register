@@ -123,13 +123,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-layoutHead($id ? 'Edit Agreement' : 'Add Agreement', 'agreements');
-pageTitle($id ? 'Edit Agreement' : 'Add Agreement', 'Register a supplier shelf-rent agreement. Fields marked * are required.');
+layoutHead($id ? t('edit_agreement') : t('add_agreement'), 'agreements');
+pageTitle($id ? t('edit_agreement') : t('add_agreement'), t('agreement_form_subtitle'));
 ?>
 
 <?php if ($errors): ?>
   <div class="alert alert-danger shadow-sm">
-    <strong>Please fix the following:</strong>
+    <strong><?= e(t('please_fix')) ?></strong>
     <ul class="mb-0 mt-1">
       <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
     </ul>
@@ -140,71 +140,71 @@ pageTitle($id ? 'Edit Agreement' : 'Add Agreement', 'Register a supplier shelf-r
   <form method="post" enctype="multipart/form-data" class="row g-3" novalidate>
     <?= csrfField() ?>
     <div class="col-md-6">
-      <label class="form-label" for="supplier_name">Supplier name *</label>
+      <label class="form-label" for="supplier_name"><?= e(t('supplier_name')) ?> *</label>
       <input class="form-control" id="supplier_name" name="supplier_name" required value="<?= e($old['supplier_name']) ?>" placeholder="e.g. Fresh Dairy Foods (Pvt) Ltd">
     </div>
     <div class="col-md-6">
-      <label class="form-label" for="ledger_code">Ledger name / code *</label>
+      <label class="form-label" for="ledger_code"><?= e(t('ledger_name_code')) ?> *</label>
       <input class="form-control" id="ledger_code" name="ledger_code" required value="<?= e($old['ledger_code']) ?>" placeholder="e.g. SUP-DAI-001">
     </div>
     <div class="col-md-6">
-      <label class="form-label" for="contact_person">Contact person</label>
+      <label class="form-label" for="contact_person"><?= e(t('contact_person')) ?></label>
       <input class="form-control" id="contact_person" name="contact_person" value="<?= e($old['contact_person']) ?>">
     </div>
     <div class="col-md-6">
-      <label class="form-label" for="contact_phone">Contact phone</label>
+      <label class="form-label" for="contact_phone"><?= e(t('contact_phone')) ?></label>
       <input class="form-control" id="contact_phone" name="contact_phone" value="<?= e($old['contact_phone']) ?>" placeholder="For follow-up calls">
     </div>
 
     <div class="col-md-4">
-      <label class="form-label" for="rent_type">Rent type *</label>
+      <label class="form-label" for="rent_type"><?= e(t('rent_type')) ?> *</label>
       <select class="form-select" id="rent_type" name="rent_type">
-        <option value="fixed" <?= $old['rent_type'] === 'fixed' ? 'selected' : '' ?>>Fixed amount</option>
-        <option value="percentage" <?= $old['rent_type'] === 'percentage' ? 'selected' : '' ?>>Percentage of sales</option>
+        <option value="fixed" <?= $old['rent_type'] === 'fixed' ? 'selected' : '' ?>><?= e(t('fixed_amount')) ?></option>
+        <option value="percentage" <?= $old['rent_type'] === 'percentage' ? 'selected' : '' ?>><?= e(t('percentage_of_sales')) ?></option>
       </select>
     </div>
     <div class="col-md-4" id="amountWrap">
-      <label class="form-label" for="rent_amount">Fixed rent amount (<?= e(CURRENCY) ?>) *</label>
+      <label class="form-label" for="rent_amount"><?= e(t('fixed_rent_amount')) ?> (<?= e(CURRENCY) ?>) *</label>
       <input type="number" step="0.01" min="0" class="form-control" id="rent_amount" name="rent_amount" value="<?= e($old['rent_amount']) ?>">
     </div>
     <div class="col-md-4 d-none" id="rateWrap">
-      <label class="form-label" for="percentage_rate">Percentage rate (%) *</label>
+      <label class="form-label" for="percentage_rate"><?= e(t('percentage_rate')) ?> *</label>
       <input type="number" step="0.01" min="0" max="100" class="form-control" id="percentage_rate" name="percentage_rate" value="<?= e($old['percentage_rate']) ?>">
-      <div class="form-text">The actual billed amount is entered month by month in the Payment Grid.</div>
+      <div class="form-text"><?= e(t('pct_billed_note')) ?></div>
     </div>
     <div class="col-md-4">
-      <label class="form-label" for="billing_frequency">Billing frequency *</label>
+      <label class="form-label" for="billing_frequency"><?= e(t('billing_frequency')) ?> *</label>
       <select class="form-select" id="billing_frequency" name="billing_frequency">
-        <option value="monthly" <?= $old['billing_frequency'] === 'monthly' ? 'selected' : '' ?>>Monthly — billed every month</option>
-        <option value="quarterly" <?= $old['billing_frequency'] === 'quarterly' ? 'selected' : '' ?>>Quarterly — every third month</option>
-        <option value="display_drive" <?= $old['billing_frequency'] === 'display_drive' ? 'selected' : '' ?>>Display Drive — once, at period end</option>
+        <option value="monthly" <?= $old['billing_frequency'] === 'monthly' ? 'selected' : '' ?>><?= e(t('freq_monthly_desc')) ?></option>
+        <option value="quarterly" <?= $old['billing_frequency'] === 'quarterly' ? 'selected' : '' ?>><?= e(t('freq_quarterly_desc')) ?></option>
+        <option value="display_drive" <?= $old['billing_frequency'] === 'display_drive' ? 'selected' : '' ?>><?= e(t('freq_display_drive_desc')) ?></option>
       </select>
     </div>
 
     <div class="col-md-6">
-      <label class="form-label" for="period_from">Agreement period — from *</label>
+      <label class="form-label" for="period_from"><?= e(t('period_from_label')) ?> *</label>
       <input type="date" class="form-control" id="period_from" name="period_from" required value="<?= e($old['period_from']) ?>">
     </div>
     <div class="col-md-6">
-      <label class="form-label" for="period_to">Agreement period — to *</label>
+      <label class="form-label" for="period_to"><?= e(t('period_to_label')) ?> *</label>
       <input type="date" class="form-control" id="period_to" name="period_to" required value="<?= e($old['period_to']) ?>">
     </div>
 
     <div class="col-md-6">
-      <label class="form-label" for="scan">Scanned signed agreement (PDF / JPG / PNG, max 5 MB)</label>
+      <label class="form-label" for="scan"><?= e(t('scan_label')) ?></label>
       <input type="file" class="form-control" id="scan" name="scan" accept=".pdf,.jpg,.jpeg,.png">
       <?php if (!empty($old['scan_file'])): ?>
-        <div class="form-text">Current file: <a href="<?= e(UPLOAD_URL . '/' . $old['scan_file']) ?>" target="_blank">view scan</a> — choose a new file only to replace it.</div>
+        <div class="form-text"><?= e(t('current_file')) ?>: <a href="<?= e(UPLOAD_URL . '/' . $old['scan_file']) ?>" target="_blank"><?= e(t('view_scan')) ?></a> — <?= e(t('replace_scan_note')) ?></div>
       <?php endif; ?>
     </div>
     <div class="col-md-6">
-      <label class="form-label" for="notes">Notes</label>
+      <label class="form-label" for="notes"><?= e(t('notes')) ?></label>
       <input class="form-control" id="notes" name="notes" value="<?= e($old['notes']) ?>" placeholder="Shelf location, display terms, etc.">
     </div>
 
     <div class="col-12 d-flex gap-2">
-      <button class="btn btn-gold" type="submit"><i class="bi bi-check2-circle me-1"></i> <?= $id ? 'Save Changes' : 'Add Agreement' ?></button>
-      <a class="btn btn-light border" href="agreements.php">Cancel</a>
+      <button class="btn btn-gold" type="submit"><i class="bi bi-check2-circle me-1"></i> <?= $id ? e(t('save_changes')) : e(t('add_agreement')) ?></button>
+      <a class="btn btn-light border" href="agreements.php"><?= e(t('cancel')) ?></a>
     </div>
   </form>
 </div>
