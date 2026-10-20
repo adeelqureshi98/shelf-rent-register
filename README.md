@@ -32,10 +32,10 @@ questions instantly:
 | ![Supplier Statement](screenshots/statement.png) | ![Audit Log](screenshots/audit.png) |
 | Accounts-style statement with running balance, print / PDF clean | Who did what, and when (Admin only) |
 
-| Dashboard in Urdu (RTL) |
-|---|
-| ![Dashboard in Urdu](screenshots/dashboard-urdu.png) |
-| Full EN/اردو toggle — UI chrome translated, figures unchanged |
+| Dashboard in Urdu (RTL) | Incentives in Urdu (RTL) |
+|---|---|
+| ![Dashboard in Urdu](screenshots/dashboard-urdu.png) | ![Incentives in Urdu](screenshots/incentives-urdu.png) |
+| Full EN/اردو toggle — UI chrome translated, figures unchanged | Same toggle on every page — headings, labels and notes included |
 
 ## Features
 

@@ -59,13 +59,13 @@ foreach ($allBills as $b) {
 }
 
 /* --- d. Aging report (overdue buckets) --- */
-$aging = ['0–30 days' => [0, 0.0], '31–60 days' => [0, 0.0], '61–90 days' => [0, 0.0], '90+ days' => [0, 0.0]];
+$aging = ['0_30' => [0, 0.0], '31_60' => [0, 0.0], '61_90' => [0, 0.0], '90p' => [0, 0.0]];
 foreach ($allBills as $b) {
     if ($b['expected_amount'] === null || $b['due_date'] >= $today) continue;
     $balance = (float)$b['expected_amount'] - $b['paid'];
     if ($balance <= 0) continue;
     $days = (int)floor((strtotime($today) - strtotime($b['due_date'])) / 86400);
-    $key = $days <= 30 ? '0–30 days' : ($days <= 60 ? '31–60 days' : ($days <= 90 ? '61–90 days' : '90+ days'));
+    $key = $days <= 30 ? '0_30' : ($days <= 60 ? '31_60' : ($days <= 90 ? '61_90' : '90p'));
     $aging[$key][0]++;
     $aging[$key][1] += $balance;
 }
@@ -101,19 +101,19 @@ layoutHead(t('reports'), 'reports');
 ?>
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-  <?php pageTitle(t('reports'), 'Print-friendly summaries. Figures agree with the Dashboard and Payment Grid.'); ?>
+  <?php pageTitle(t('reports'), t('reports_subtitle')); ?>
   <button class="btn btn-gold no-print" onclick="window.print()"><i class="bi bi-printer me-1"></i> <?= e(t('print')) ?></button>
 </div>
 
 <div class="no-print d-flex flex-wrap gap-2 mb-3">
-  <?php foreach (['r-monthly' => 'Monthly Recovery', 'r-overdue' => 'Overdue by Company', 'r-company' => 'Company Summary', 'r-aging' => 'Aging', 'r-methods' => 'Payment Methods', 'r-incentives' => 'Incentives', 'r-expiring' => 'Expiring', 'r-statements' => 'Statements'] as $anchor => $label): ?>
+  <?php foreach (['r-monthly' => t('monthly_recovery'), 'r-overdue' => t('overdue_by_company'), 'r-company' => t('company_summary'), 'r-aging' => t('aging_chip'), 'r-methods' => t('payment_methods'), 'r-incentives' => t('incentives'), 'r-expiring' => t('expiring_chip'), 'r-statements' => t('statements_chip')] as $anchor => $label): ?>
     <a class="btn btn-sm btn-outline-gold" href="#<?= $anchor ?>"><?= $label ?></a>
   <?php endforeach; ?>
 </div>
 
 <div class="panel mb-3" id="r-monthly">
   <div class="panel-head">
-    <h2><i class="bi bi-calendar-check me-2"></i>Monthly Recovery — <?= $year ?></h2>
+    <h2><i class="bi bi-calendar-check me-2"></i><?= e(t('monthly_recovery')) ?> — <?= $year ?></h2>
     <div class="d-flex gap-2 align-items-center">
       <?php csvBtn('monthly', ['year' => $year]); ?>
       <form class="no-print d-flex gap-2" method="get">
@@ -124,7 +124,7 @@ layoutHead(t('reports'), 'reports');
   </div>
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
-      <thead><tr><th>Month</th><th class="text-end">Expected</th><th class="text-end">Received</th><th class="text-end">Outstanding</th><th class="text-end">Recovery %</th><th class="text-end">Awaited bills</th></tr></thead>
+      <thead><tr><th><?= e(t('month')) ?></th><th class="text-end"><?= e(t('expected')) ?></th><th class="text-end"><?= e(t('received')) ?></th><th class="text-end"><?= e(t('outstanding')) ?></th><th class="text-end"><?= e(t('recovery_pct')) ?></th><th class="text-end"><?= e(t('awaited_bills')) ?></th></tr></thead>
       <tbody>
       <?php $tE = 0; $tR = 0; foreach ($months as $m => $v): $tE += $v['expected']; $tR += $v['received']; ?>
         <tr>
@@ -138,26 +138,26 @@ layoutHead(t('reports'), 'reports');
       <?php endforeach; ?>
       </tbody>
       <tfoot>
-        <tr><th>Total <?= $year ?></th><th class="text-end"><?= money($tE) ?></th><th class="text-end"><?= money($tR) ?></th>
+        <tr><th><?= e(t('total')) ?> <?= $year ?></th><th class="text-end"><?= money($tE) ?></th><th class="text-end"><?= money($tR) ?></th>
             <th class="text-end"><?= money(max(0, $tE - $tR)) ?></th>
             <th class="text-end"><?= $tE > 0 ? number_format($tR / $tE * 100, 1) . '%' : '—' ?></th><th></th></tr>
       </tfoot>
     </table>
   </div>
-  <p class="cell-sub mt-2 mb-0">Received means payments allocated to that month's bills, so a late payment still counts against its own bill month — that is what keeps this report in agreement with the grid.</p>
+  <p class="cell-sub mt-2 mb-0"><?= e(t('note_monthly_recovery')) ?></p>
 </div>
 
 <div class="panel mb-3" id="r-overdue">
   <div class="panel-head">
-    <h2><i class="bi bi-exclamation-octagon me-2"></i>Overdue Summary by Company</h2>
+    <h2><i class="bi bi-exclamation-octagon me-2"></i><?= e(t('overdue_summary_by_company')) ?></h2>
     <?php csvBtn('overdue'); ?>
   </div>
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
-      <thead><tr><th>Company</th><th class="text-end">Overdue bills</th><th>Oldest due date</th><th class="text-end">Overdue amount</th><th class="no-print"></th></tr></thead>
+      <thead><tr><th><?= e(t('company')) ?></th><th class="text-end"><?= e(t('overdue_bills')) ?></th><th><?= e(t('oldest_due_date')) ?></th><th class="text-end"><?= e(t('overdue_amount')) ?></th><th class="no-print"></th></tr></thead>
       <tbody>
       <?php if (!$overdue): ?>
-        <tr><td colspan="5" class="text-center py-4 text-muted">No overdue amounts. Excellent.</td></tr>
+        <tr><td colspan="5" class="text-center py-4 text-muted"><?= e(t('no_overdue_excellent')) ?></td></tr>
       <?php endif; ?>
       <?php foreach ($overdue as $o): ?>
         <tr>
@@ -165,12 +165,12 @@ layoutHead(t('reports'), 'reports');
           <td class="text-end"><?= $o['bills'] ?></td>
           <td><?= date('d M Y', strtotime($o['oldest'])) ?></td>
           <td class="text-end fw-semibold text-danger"><?= money($o['amount']) ?></td>
-          <td class="text-end no-print"><a class="btn btn-sm btn-light border" href="reminders.php">Remind</a></td>
+          <td class="text-end no-print"><a class="btn btn-sm btn-light border" href="reminders.php"><?= e(t('remind')) ?></a></td>
         </tr>
       <?php endforeach; ?>
       </tbody>
       <?php if ($overdue): ?>
-      <tfoot><tr><th colspan="3">Total overdue</th><th class="text-end text-danger"><?= money($totalOverdue) ?></th><th class="no-print"></th></tr></tfoot>
+      <tfoot><tr><th colspan="3"><?= e(t('total_overdue')) ?></th><th class="text-end text-danger"><?= money($totalOverdue) ?></th><th class="no-print"></th></tr></tfoot>
       <?php endif; ?>
     </table>
   </div>
@@ -178,12 +178,12 @@ layoutHead(t('reports'), 'reports');
 
 <div class="panel mb-3" id="r-company">
   <div class="panel-head">
-    <h2><i class="bi bi-building me-2"></i>Company-wise Summary</h2>
+    <h2><i class="bi bi-building me-2"></i><?= e(t('companywise_summary')) ?></h2>
     <?php csvBtn('company'); ?>
   </div>
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
-      <thead><tr><th>Company</th><th class="text-end">Expected</th><th class="text-end">Received</th><th class="text-end">Outstanding</th><th class="text-end">Recovery %</th><th class="text-end">Awaited bills</th></tr></thead>
+      <thead><tr><th><?= e(t('company')) ?></th><th class="text-end"><?= e(t('expected')) ?></th><th class="text-end"><?= e(t('received')) ?></th><th class="text-end"><?= e(t('outstanding')) ?></th><th class="text-end"><?= e(t('recovery_pct')) ?></th><th class="text-end"><?= e(t('awaited_bills')) ?></th></tr></thead>
       <tbody>
       <?php foreach ($companySum as $id => $s): ?>
         <tr>
@@ -198,39 +198,39 @@ layoutHead(t('reports'), 'reports');
       </tbody>
     </table>
   </div>
-  <p class="cell-sub mt-2 mb-0">Whole agreement periods (all bills raised), unlike the dashboard which counts bills raised to date.</p>
+  <p class="cell-sub mt-2 mb-0"><?= e(t('note_company_summary')) ?></p>
 </div>
 
 <div class="row g-3 mb-3">
   <div class="col-xl-6">
     <div class="panel h-100" id="r-aging">
       <div class="panel-head">
-        <h2><i class="bi bi-hourglass-bottom me-2"></i>Aging Report</h2>
+        <h2><i class="bi bi-hourglass-bottom me-2"></i><?= e(t('aging_report')) ?></h2>
         <?php csvBtn('aging'); ?>
       </div>
       <div class="table-responsive">
         <table class="table table-luxe align-middle mb-0">
-          <thead><tr><th>Overdue for</th><th class="text-end">Bills</th><th class="text-end">Amount</th></tr></thead>
+          <thead><tr><th><?= e(t('overdue_for')) ?></th><th class="text-end"><?= e(t('bills')) ?></th><th class="text-end"><?= e(t('amount')) ?></th></tr></thead>
           <tbody>
           <?php $aN = 0; $aT = 0; foreach ($aging as $k => [$n, $amt]): $aN += $n; $aT += $amt; ?>
-            <tr><td><?= $k ?></td><td class="text-end"><?= $n ?></td><td class="text-end <?= $amt > 0 ? 'fw-semibold' : '' ?>"><?= money($amt) ?></td></tr>
+            <tr><td><?= e(t('aging_' . $k)) ?></td><td class="text-end"><?= $n ?></td><td class="text-end <?= $amt > 0 ? 'fw-semibold' : '' ?>"><?= money($amt) ?></td></tr>
           <?php endforeach; ?>
           </tbody>
-          <tfoot><tr><th>Total overdue</th><th class="text-end"><?= $aN ?></th><th class="text-end text-danger"><?= money($aT) ?></th></tr></tfoot>
+          <tfoot><tr><th><?= e(t('total_overdue')) ?></th><th class="text-end"><?= $aN ?></th><th class="text-end text-danger"><?= money($aT) ?></th></tr></tfoot>
         </table>
       </div>
-      <p class="cell-sub mt-2 mb-0">How old the overdue money is, by each bill's due date.</p>
+      <p class="cell-sub mt-2 mb-0"><?= e(t('note_aging')) ?></p>
     </div>
   </div>
   <div class="col-xl-6">
     <div class="panel h-100" id="r-methods">
       <div class="panel-head">
-        <h2><i class="bi bi-wallet2 me-2"></i>Payment Method Summary</h2>
+        <h2><i class="bi bi-wallet2 me-2"></i><?= e(t('payment_method_summary')) ?></h2>
         <?php csvBtn('methods'); ?>
       </div>
       <div class="table-responsive">
         <table class="table table-luxe align-middle mb-0">
-          <thead><tr><th>Method</th><th class="text-end">Payments</th><th class="text-end">Total received</th><th class="text-end">Share</th></tr></thead>
+          <thead><tr><th><?= e(t('method')) ?></th><th class="text-end"><?= e(t('payments')) ?></th><th class="text-end"><?= e(t('total_received')) ?></th><th class="text-end"><?= e(t('share')) ?></th></tr></thead>
           <tbody>
           <?php foreach ($methods as $r): ?>
             <tr>
@@ -241,25 +241,25 @@ layoutHead(t('reports'), 'reports');
             </tr>
           <?php endforeach; ?>
           </tbody>
-          <tfoot><tr><th>All methods</th><th class="text-end"><?= array_sum(array_map(fn($r) => (int)$r['n'], $methods)) ?></th><th class="text-end"><?= money($methodTotal) ?></th><th></th></tr></tfoot>
+          <tfoot><tr><th><?= e(t('all_methods')) ?></th><th class="text-end"><?= array_sum(array_map(fn($r) => (int)$r['n'], $methods)) ?></th><th class="text-end"><?= money($methodTotal) ?></th><th></th></tr></tfoot>
         </table>
       </div>
-      <p class="cell-sub mt-2 mb-0">Every payment ever recorded, grouped by how the money arrived.</p>
+      <p class="cell-sub mt-2 mb-0"><?= e(t('note_methods')) ?></p>
     </div>
   </div>
 </div>
 
 <div class="panel mb-3" id="r-incentives">
   <div class="panel-head">
-    <h2><i class="bi bi-gift me-2"></i>Incentive Report</h2>
+    <h2><i class="bi bi-gift me-2"></i><?= e(t('incentive_report')) ?></h2>
     <?php csvBtn('incentives'); ?>
   </div>
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
-      <thead><tr><th>Company</th><th class="text-end">Expected</th><th class="text-end">Received</th><th class="text-end">Overdue balance</th><th class="text-end">Awaited</th></tr></thead>
+      <thead><tr><th><?= e(t('company')) ?></th><th class="text-end"><?= e(t('expected')) ?></th><th class="text-end"><?= e(t('received')) ?></th><th class="text-end"><?= e(t('overdue_balance')) ?></th><th class="text-end"><?= e(t('awaited')) ?></th></tr></thead>
       <tbody>
       <?php if (!$incPer): ?>
-        <tr><td colspan="5" class="text-center py-4 text-muted">No incentives recorded yet.</td></tr>
+        <tr><td colspan="5" class="text-center py-4 text-muted"><?= e(t('no_incentives_yet')) ?></td></tr>
       <?php endif; ?>
       <?php $iE = 0; $iR = 0; $iO = 0; foreach ($incPer as $id => $s): $iE += $s['expected']; $iR += $s['received']; $iO += $s['overdue']; ?>
         <tr>
@@ -272,7 +272,7 @@ layoutHead(t('reports'), 'reports');
       <?php endforeach; ?>
       </tbody>
       <?php if ($incPer): ?>
-      <tfoot><tr><th>Total incentives</th><th class="text-end"><?= money($iE) ?></th><th class="text-end"><?= money($iR) ?></th><th class="text-end text-danger"><?= money($iO) ?></th><th></th></tr></tfoot>
+      <tfoot><tr><th><?= e(t('total_incentives')) ?></th><th class="text-end"><?= money($iE) ?></th><th class="text-end"><?= money($iR) ?></th><th class="text-end text-danger"><?= money($iO) ?></th><th></th></tr></tfoot>
       <?php endif; ?>
     </table>
   </div>
@@ -280,23 +280,23 @@ layoutHead(t('reports'), 'reports');
 
 <div class="panel mb-3" id="r-expiring">
   <div class="panel-head">
-    <h2><i class="bi bi-calendar-x me-2"></i>Expiring Agreements — Next 90 Days</h2>
+    <h2><i class="bi bi-calendar-x me-2"></i><?= e(t('expiring_next_90')) ?></h2>
     <?php csvBtn('expiring'); ?>
   </div>
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
-      <thead><tr><th>Company</th><th>Period ends</th><th class="text-end">Days left</th><th>Window</th><th class="no-print"></th></tr></thead>
+      <thead><tr><th><?= e(t('company')) ?></th><th><?= e(t('period_ends')) ?></th><th class="text-end"><?= e(t('days_left_label')) ?></th><th><?= e(t('window')) ?></th><th class="no-print"></th></tr></thead>
       <tbody>
       <?php if (!$expiring): ?>
-        <tr><td colspan="5" class="text-center py-4 text-muted">No agreements end in the next 90 days.</td></tr>
+        <tr><td colspan="5" class="text-center py-4 text-muted"><?= e(t('no_expiring_90')) ?></td></tr>
       <?php endif; ?>
       <?php foreach ($expiring as $ag): $days = (int)round((strtotime($ag['period_to']) - strtotime($today)) / 86400); ?>
         <tr>
           <td><a href="company.php?id=<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?></a><div class="cell-sub"><?= e($ag['ledger_code']) ?></div></td>
           <td><?= date('d M Y', strtotime($ag['period_to'])) ?></td>
           <td class="text-end"><?= $days ?></td>
-          <td><span class="pill <?= $days <= 30 ? 'pill-overdue' : ($days <= 60 ? 'pill-partial' : 'pill-due') ?>"><?= $days <= 30 ? 'Within 30 days' : ($days <= 60 ? 'Within 60 days' : 'Within 90 days') ?></span></td>
-          <td class="text-end no-print"><a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$ag['id'] ?>">Ledger</a></td>
+          <td><span class="pill <?= $days <= 30 ? 'pill-overdue' : ($days <= 60 ? 'pill-partial' : 'pill-due') ?>"><?= e(sprintf(t('within_days'), $days <= 30 ? 30 : ($days <= 60 ? 60 : 90))) ?></span></td>
+          <td class="text-end no-print"><a class="btn btn-sm btn-light border" href="company.php?id=<?= (int)$ag['id'] ?>"><?= e(t('ledger')) ?></a></td>
         </tr>
       <?php endforeach; ?>
       </tbody>
@@ -305,8 +305,8 @@ layoutHead(t('reports'), 'reports');
 </div>
 
 <div class="panel" id="r-statements">
-  <div class="panel-head"><h2><i class="bi bi-file-earmark-text me-2"></i><?= e(t('supplier_statement')) ?>s</h2></div>
-  <p class="cell-sub">An accounts-style statement per supplier — opening balance, every bill and payment in the period, closing balance. Opens print-ready.</p>
+  <div class="panel-head"><h2><i class="bi bi-file-earmark-text me-2"></i><?= e(t('supplier_statements')) ?></h2></div>
+  <p class="cell-sub"><?= e(t('note_statements')) ?></p>
   <div class="d-flex flex-wrap gap-2">
     <?php foreach ($allAgreements as $ag): ?>
       <a class="btn btn-light border" target="_blank" href="statement.php?id=<?= (int)$ag['id'] ?>"><i class="bi bi-printer me-1"></i> <?= e($ag['supplier_name']) ?></a>

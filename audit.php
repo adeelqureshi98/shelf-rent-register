@@ -39,18 +39,18 @@ $usernames = $pdo->query('SELECT DISTINCT username FROM audit_log WHERE username
 $actions   = $pdo->query('SELECT DISTINCT action FROM audit_log ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
 
 layoutHead(t('audit_log'), 'audit');
-pageTitle(t('audit_log'), 'Who did what, and when. Newest first, latest 200 entries.');
+pageTitle(t('audit_log'), t('audit_subtitle'));
 ?>
 
 <form class="filter-bar" method="get">
   <select class="form-select filter-status" name="user">
-    <option value="">All users</option>
+    <option value=""><?= e(t('all_users')) ?></option>
     <?php foreach ($usernames as $un): ?>
       <option value="<?= e($un) ?>" <?= $fUser === $un ? 'selected' : '' ?>><?= e($un) ?></option>
     <?php endforeach; ?>
   </select>
   <select class="form-select filter-status" name="action">
-    <option value="">All actions</option>
+    <option value=""><?= e(t('all_actions')) ?></option>
     <?php foreach ($actions as $ac): ?>
       <option value="<?= e($ac) ?>" <?= $fAction === $ac ? 'selected' : '' ?>><?= e($ac) ?></option>
     <?php endforeach; ?>
@@ -58,17 +58,17 @@ pageTitle(t('audit_log'), 'Who did what, and when. Newest first, latest 200 entr
   <input type="date" class="form-control filter-status" name="date" value="<?= e($fDate) ?>">
   <button class="btn btn-gold" type="submit"><?= e(t('filter')) ?></button>
   <?php if ($fUser !== '' || $fAction !== '' || $fDate !== ''): ?>
-    <a class="btn btn-light border" href="audit.php">Clear</a>
+    <a class="btn btn-light border" href="audit.php"><?= e(t('clear')) ?></a>
   <?php endif; ?>
 </form>
 
 <div class="panel p-0 overflow-hidden">
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
-      <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th></tr></thead>
+      <thead><tr><th><?= e(t('time')) ?></th><th><?= e(t('user')) ?></th><th><?= e(t('action')) ?></th><th><?= e(t('entity')) ?></th><th><?= e(t('details')) ?></th><th>IP</th></tr></thead>
       <tbody>
       <?php if (!$rows): ?>
-        <tr><td colspan="6" class="text-center py-4 text-muted">No audit entries match this filter yet.</td></tr>
+        <tr><td colspan="6" class="text-center py-4 text-muted"><?= e(t('no_audit_entries')) ?></td></tr>
       <?php endif; ?>
       <?php foreach ($rows as $r): ?>
         <tr>

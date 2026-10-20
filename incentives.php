@@ -42,7 +42,7 @@ if ($statF !== '') {
 }
 
 layoutHead(t('incentives'), 'incentives');
-pageTitle(t('incentives'), 'Promotion, display and launch money owed by suppliers, on top of shelf rent.');
+pageTitle(t('incentives'), t('incentives_subtitle'));
 ?>
 
 <div class="row g-3 mb-4">
@@ -51,7 +51,7 @@ pageTitle(t('incentives'), 'Promotion, display and launch money owed by supplier
       <div class="stat-icon gold"><i class="bi bi-gift"></i></div>
       <div class="stat-label"><?= e(t('total_expected')) ?></div>
       <div class="stat-value"><?= money($tot['expected']) ?></div>
-      <div class="stat-note">Known incentive amounts (awaited excluded)</div>
+      <div class="stat-note"><?= e(t('note_known_incentives')) ?></div>
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
@@ -59,7 +59,7 @@ pageTitle(t('incentives'), 'Promotion, display and launch money owed by supplier
       <div class="stat-icon green"><i class="bi bi-cash-stack"></i></div>
       <div class="stat-label"><?= e(t('total_received')) ?></div>
       <div class="stat-value"><?= money($tot['received']) ?></div>
-      <div class="stat-note"><?= $tot['expected'] > 0 ? number_format($tot['received'] / $tot['expected'] * 100, 1) : '0.0' ?>% of known incentives collected</div>
+      <div class="stat-note"><?= e(sprintf(t('collected_of_known'), $tot['expected'] > 0 ? number_format($tot['received'] / $tot['expected'] * 100, 1) : '0.0')) ?></div>
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
@@ -67,7 +67,7 @@ pageTitle(t('incentives'), 'Promotion, display and launch money owed by supplier
       <div class="stat-icon red"><i class="bi bi-exclamation-octagon"></i></div>
       <div class="stat-label"><?= e(t('total_overdue')) ?></div>
       <div class="stat-value"><?= money($tot['overdue']) ?></div>
-      <div class="stat-note">Unpaid balance past its expected date</div>
+      <div class="stat-note"><?= e(t('note_unpaid_balance')) ?></div>
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
@@ -75,7 +75,7 @@ pageTitle(t('incentives'), 'Promotion, display and launch money owed by supplier
       <div class="stat-icon plum"><i class="bi bi-hourglass-split"></i></div>
       <div class="stat-label"><?= e(t('awaited_amounts')) ?></div>
       <div class="stat-value"><?= $tot['awaited_count'] ?></div>
-      <div class="stat-note">Percentage incentives waiting for the actual amount</div>
+      <div class="stat-note"><?= e(t('note_pct_incentives_waiting')) ?></div>
     </div>
   </div>
 </div>
@@ -84,10 +84,10 @@ pageTitle(t('incentives'), 'Promotion, display and launch money owed by supplier
   <form class="filter-bar m-0 flex-grow-1" method="get">
     <div class="input-group filter-search">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search')) ?> company or title">
+      <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search_company_or_title')) ?>">
     </div>
     <select class="form-select filter-status" name="status">
-      <option value="">All statuses</option>
+      <option value=""><?= e(t('all_statuses')) ?></option>
       <?php foreach (['received', 'partial', 'overdue', 'pending', 'awaited'] as $s): ?>
         <option value="<?= $s ?>" <?= $statF === $s ? 'selected' : '' ?>><?= statusLabel($s) ?></option>
       <?php endforeach; ?>
@@ -103,11 +103,11 @@ pageTitle(t('incentives'), 'Promotion, display and launch money owed by supplier
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
       <thead>
-        <tr><th><?= e(t('company')) ?></th><th>Incentive</th><th class="text-end"><?= e(t('expected')) ?></th><th class="text-end"><?= e(t('received')) ?></th><th class="text-end"><?= e(t('balance')) ?></th><th>Expected date</th><th><?= e(t('status')) ?></th><th class="text-end"><?= e(t('actions')) ?></th></tr>
+        <tr><th><?= e(t('company')) ?></th><th><?= e(t('incentive')) ?></th><th class="text-end"><?= e(t('expected')) ?></th><th class="text-end"><?= e(t('received')) ?></th><th class="text-end"><?= e(t('balance')) ?></th><th><?= e(t('expected_date')) ?></th><th><?= e(t('status')) ?></th><th class="text-end"><?= e(t('actions')) ?></th></tr>
       </thead>
       <tbody>
       <?php if (!$rows): ?>
-        <tr><td colspan="8" class="text-center py-4 text-muted">No incentives match this filter.</td></tr>
+        <tr><td colspan="8" class="text-center py-4 text-muted"><?= e(t('no_incentives_match')) ?></td></tr>
       <?php endif; ?>
       <?php foreach ($rows as $inc): ?>
         <tr>
@@ -116,9 +116,9 @@ pageTitle(t('incentives'), 'Promotion, display and launch money owed by supplier
             <div class="cell-sub"><?= e($inc['ledger_code']) ?></div>
           </td>
           <td><?= e($inc['title']) ?>
-            <div class="cell-sub"><?= e($inc['type']) ?> · <?= $inc['basis'] === 'Percentage' ? 'Percentage @ ' . e($inc['rate']) . '%' : 'Fixed' ?></div>
+            <div class="cell-sub"><?= e($inc['type']) ?> · <?= $inc['basis'] === 'Percentage' ? e(t('percentage')) . ' @ ' . e($inc['rate']) . '%' : e(t('fixed')) ?></div>
           </td>
-          <td class="text-end"><?= $inc['expected_amount'] === null ? '<span class="text-muted">Awaited</span>' : money($inc['expected_amount']) ?></td>
+          <td class="text-end"><?= $inc['expected_amount'] === null ? '<span class="text-muted">' . e(t('awaited')) . '</span>' : money($inc['expected_amount']) ?></td>
           <td class="text-end"><?= money($inc['received_amount']) ?></td>
           <td class="text-end"><?= $inc['balance'] === null ? '—' : money($inc['balance']) ?></td>
           <td><?= date('d M Y', strtotime($inc['expected_date'])) ?></td>

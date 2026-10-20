@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $users = $pdo->query('SELECT * FROM users ORDER BY role, name')->fetchAll();
 
 layoutHead(t('users'), 'users');
-pageTitle(t('users'), 'Staff accounts and roles. Permissions are enforced on the server for every action.');
+pageTitle(t('users'), t('users_subtitle'));
 ?>
 
 <div class="row g-3">
@@ -99,14 +99,14 @@ pageTitle(t('users'), 'Staff accounts and roles. Permissions are enforced on the
     <div class="panel p-0 overflow-hidden">
       <div class="table-responsive">
         <table class="table table-luxe align-middle mb-0">
-          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Active</th><th class="text-end">Manage</th></tr></thead>
+          <thead><tr><th><?= e(t('name')) ?></th><th><?= e(t('username')) ?></th><th><?= e(t('role')) ?></th><th><?= e(t('active')) ?></th><th class="text-end"><?= e(t('manage')) ?></th></tr></thead>
           <tbody>
           <?php foreach ($users as $u): ?>
             <tr>
-              <td><?= e($u['name']) ?><?= (int)$u['id'] === (int)$me['id'] ? ' <span class="cell-sub">(you)</span>' : '' ?></td>
+              <td><?= e($u['name']) ?><?= (int)$u['id'] === (int)$me['id'] ? ' <span class="cell-sub">' . e(t('you_suffix')) . '</span>' : '' ?></td>
               <td><?= e($u['username']) ?></td>
-              <td><span class="pill pill-role-<?= e($u['role']) ?>"><?= ucfirst($u['role']) ?></span></td>
-              <td><?= $u['is_active'] ? '<span class="text-success">Active</span>' : '<span class="text-muted">Inactive</span>' ?></td>
+              <td><span class="pill pill-role-<?= e($u['role']) ?>"><?= e(t('role_' . $u['role'])) ?></span></td>
+              <td><?= $u['is_active'] ? '<span class="text-success">' . e(t('active')) . '</span>' : '<span class="text-muted">' . e(t('inactive')) . '</span>' ?></td>
               <td class="text-end">
                 <form method="post" class="d-inline-flex gap-1 align-items-center justify-content-end flex-wrap">
                   <?= csrfField() ?>
@@ -114,7 +114,7 @@ pageTitle(t('users'), 'Staff accounts and roles. Permissions are enforced on the
                   <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
                   <select class="form-select form-select-sm w-auto" name="role">
                     <?php foreach (['admin', 'accountant', 'viewer'] as $r): ?>
-                      <option value="<?= $r ?>" <?= $u['role'] === $r ? 'selected' : '' ?>><?= ucfirst($r) ?></option>
+                      <option value="<?= $r ?>" <?= $u['role'] === $r ? 'selected' : '' ?>><?= e(t('role_' . $r)) ?></option>
                     <?php endforeach; ?>
                   </select>
                   <label class="form-check form-switch m-0">
@@ -126,8 +126,8 @@ pageTitle(t('users'), 'Staff accounts and roles. Permissions are enforced on the
                   <?= csrfField() ?>
                   <input type="hidden" name="action" value="reset">
                   <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
-                  <input type="password" class="form-control form-control-sm w-auto" name="password" placeholder="New password">
-                  <button class="btn btn-sm btn-light border" type="submit">Reset</button>
+                  <input type="password" class="form-control form-control-sm w-auto" name="password" placeholder="<?= e(t('new_password')) ?>">
+                  <button class="btn btn-sm btn-light border" type="submit"><?= e(t('reset')) ?></button>
                 </form>
                 <?php if ((int)$u['id'] !== (int)$me['id']): ?>
                 <form method="post" class="d-inline mt-1" onsubmit="return confirm('Delete this user account?');">
@@ -147,31 +147,31 @@ pageTitle(t('users'), 'Staff accounts and roles. Permissions are enforced on the
   </div>
   <div class="col-xl-4">
     <div class="panel">
-      <h2 class="panel-title"><i class="bi bi-person-plus me-2"></i>Add User</h2>
+      <h2 class="panel-title"><i class="bi bi-person-plus me-2"></i><?= e(t('add_user')) ?></h2>
       <form method="post" class="row g-2">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="create">
         <div class="col-12">
-          <label class="form-label">Full name</label>
+          <label class="form-label"><?= e(t('full_name')) ?></label>
           <input class="form-control" name="name" required>
         </div>
         <div class="col-12">
-          <label class="form-label">Username</label>
+          <label class="form-label"><?= e(t('username')) ?></label>
           <input class="form-control" name="username" required>
         </div>
         <div class="col-12">
-          <label class="form-label">Password (min 6 characters)</label>
+          <label class="form-label"><?= e(t('password_min')) ?></label>
           <input type="password" class="form-control" name="password" required minlength="6">
         </div>
         <div class="col-12">
-          <label class="form-label">Role</label>
+          <label class="form-label"><?= e(t('role')) ?></label>
           <select class="form-select" name="role">
-            <option value="viewer">Viewer — read only</option>
-            <option value="accountant">Accountant — agreements + payments</option>
-            <option value="admin">Admin — full access</option>
+            <option value="viewer"><?= e(t('role_viewer_desc')) ?></option>
+            <option value="accountant"><?= e(t('role_accountant_desc')) ?></option>
+            <option value="admin"><?= e(t('role_admin_desc')) ?></option>
           </select>
         </div>
-        <div class="col-12"><button class="btn btn-gold w-100" type="submit">Create User</button></div>
+        <div class="col-12"><button class="btn btn-gold w-100" type="submit"><?= e(t('create_user')) ?></button></div>
       </form>
     </div>
   </div>

@@ -8,7 +8,7 @@ function layoutHead(string $title, string $active): void
 {
     $u = currentUser();
     $lang = appLang();
-    $roleLabel = ['admin' => 'Administrator', 'accountant' => 'Accountant', 'viewer' => 'Viewer'][$u['role']] ?? $u['role'];
+    $roleLabel = ['admin' => t('role_administrator'), 'accountant' => t('role_accountant'), 'viewer' => t('role_viewer')][$u['role']] ?? $u['role'];
     $nav = [
         'index'      => ['index.php',      'bi-grid-1x2-fill',  t('dashboard')],
         'grid'       => ['grid.php',       'bi-calendar3',      t('payment_grid')],

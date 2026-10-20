@@ -121,13 +121,13 @@ $history = $pdo->query(
 )->fetchAll();
 
 $sections = [
-    'overdue' => ['Overdue', 'bi-exclamation-octagon text-danger', 'pill-overdue'],
-    'due7'    => ['Due in the next 7 days', 'bi-alarm text-warning', 'pill-partial'],
-    'due30'   => ['Due in the next 30 days', 'bi-calendar-event', 'pill-due'],
+    'overdue' => [t('overdue'), 'bi-exclamation-octagon text-danger', 'pill-overdue'],
+    'due7'    => [t('due_next_7'), 'bi-alarm text-warning', 'pill-partial'],
+    'due30'   => [t('due_next_30'), 'bi-calendar-event', 'pill-due'],
 ];
 
 layoutHead(t('reminders'), 'reminders');
-pageTitle(t('reminders'), 'Open bills and incentives by urgency, with one-click WhatsApp and email reminders.');
+pageTitle(t('reminders'), t('reminders_subtitle'));
 ?>
 
 <?php foreach ($sections as $key => [$label, $icon, $pill]): $rows = array_values(array_filter($items, fn($i) => $i['bucket'] === $key)); ?>
@@ -137,10 +137,10 @@ pageTitle(t('reminders'), 'Open bills and incentives by urgency, with one-click 
   </div>
   <div class="table-responsive">
     <table class="table table-luxe align-middle mb-0">
-      <thead><tr><th><?= e(t('company')) ?></th><th>Contact</th><th>Item</th><th>Due date</th><th class="text-end"><?= e(t('amount')) ?></th><th>Days</th><th class="text-end no-print"><?= e(t('actions')) ?></th></tr></thead>
+      <thead><tr><th><?= e(t('company')) ?></th><th><?= e(t('contact')) ?></th><th><?= e(t('item')) ?></th><th><?= e(t('due_date')) ?></th><th class="text-end"><?= e(t('amount')) ?></th><th><?= e(t('days')) ?></th><th class="text-end no-print"><?= e(t('actions')) ?></th></tr></thead>
       <tbody>
       <?php if (!$rows): ?>
-        <tr><td colspan="7" class="text-center py-3 text-muted">Nothing in this band.</td></tr>
+        <tr><td colspan="7" class="text-center py-3 text-muted"><?= e(t('nothing_in_band')) ?></td></tr>
       <?php endif; ?>
       <?php foreach ($rows as $it):
         $days = (int)round((strtotime($it['date']) - strtotime($today)) / 86400);
@@ -157,7 +157,7 @@ pageTitle(t('reminders'), 'Open bills and incentives by urgency, with one-click 
           <td><?= e($it['item']) ?></td>
           <td><?= date('d M Y', strtotime($it['date'])) ?></td>
           <td class="text-end fw-semibold"><?= money($it['amount']) ?></td>
-          <td><span class="pill <?= $pill ?>"><?= $days < 0 ? abs($days) . ' day(s) late' : ($days === 0 ? 'Due today' : $days . ' day(s) left') ?></span></td>
+          <td><span class="pill <?= $pill ?>"><?= $days < 0 ? e(sprintf(t('days_late'), abs($days))) : ($days === 0 ? e(t('due_today')) : e(sprintf(t('days_left_paren'), $days))) ?></span></td>
           <td class="text-end text-nowrap">
             <?php if ($wa): ?>
               <a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="https://wa.me/<?= e($wa) ?>?text=<?= urlencode($text) ?>"><i class="bi bi-whatsapp"></i> <?= e(t('whatsapp')) ?></a>
@@ -188,13 +188,13 @@ pageTitle(t('reminders'), 'Open bills and incentives by urgency, with one-click 
 <?php endforeach; ?>
 
 <div class="panel">
-  <div class="panel-head"><h2><i class="bi bi-clock-history me-2"></i>Reminder History</h2></div>
+  <div class="panel-head"><h2><i class="bi bi-clock-history me-2"></i><?= e(t('reminder_history')) ?></h2></div>
   <?php if (!$history): ?>
-    <p class="empty-note">No reminders logged yet. Use “Mark sent” after sending one and it will appear here.</p>
+    <p class="empty-note"><?= e(t('no_reminders_logged')) ?></p>
   <?php else: ?>
     <div class="table-responsive">
       <table class="table table-luxe align-middle mb-0">
-        <thead><tr><th>Sent at</th><th>Company</th><th>Channel</th><th>Item</th><th class="text-end">Amount</th><th>By</th></tr></thead>
+        <thead><tr><th><?= e(t('sent_at')) ?></th><th><?= e(t('company')) ?></th><th><?= e(t('channel')) ?></th><th><?= e(t('item')) ?></th><th class="text-end"><?= e(t('amount')) ?></th><th><?= e(t('sent_by')) ?></th></tr></thead>
         <tbody>
         <?php foreach ($history as $h): ?>
           <tr>
@@ -203,7 +203,7 @@ pageTitle(t('reminders'), 'Open bills and incentives by urgency, with one-click 
             <td><?= $h['channel'] === 'WhatsApp' ? '<i class="bi bi-whatsapp text-success"></i> ' : '<i class="bi bi-envelope"></i> ' ?><?= e($h['channel']) ?></td>
             <td><?= e($h['item_label']) ?></td>
             <td class="text-end"><?= $h['amount'] === null ? '—' : money($h['amount']) ?></td>
-            <td><?= e($h['by_name'] ?? 'Automatic (cron)') ?></td>
+            <td><?= e($h['by_name'] ?? t('automatic_cron')) ?></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
@@ -211,10 +211,7 @@ pageTitle(t('reminders'), 'Open bills and incentives by urgency, with one-click 
     </div>
   <?php endif; ?>
   <p class="cell-sub mt-3 mb-0">
-    Automatic sending: email reminders can be sent on a schedule by running
-    <code>php cron_reminders.php</code> (cron / Windows Task Scheduler — see README_SETUP.md).
-    WhatsApp stays one-click from this page: fully automatic WhatsApp sending requires the
-    WhatsApp Business API, which a supplier-facing page cannot do on its own.
+    <?= e(t('auto_note_1')) ?><code>php cron_reminders.php</code><?= e(t('auto_note_2')) ?>
   </p>
 </div>
 

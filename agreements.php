@@ -62,31 +62,31 @@ $today = date('Y-m-d');
 $limit = date('Y-m-d', strtotime('+' . EXPIRY_WARN_DAYS . ' days'));
 
 layoutHead(t('agreements'), 'agreements');
-pageTitle(t('agreements'), 'Every supplier shelf-rent agreement on record.');
+pageTitle(t('agreements'), t('agreements_subtitle'));
 ?>
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
   <form class="filter-bar m-0 flex-grow-1" method="get">
     <div class="input-group filter-search">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="Search company or ledger code">
+      <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search_company_placeholder')) ?>">
     </div>
     <select class="form-select filter-status" name="type">
-      <option value="">All types</option>
-      <option value="fixed" <?= $type === 'fixed' ? 'selected' : '' ?>>Fixed rent</option>
-      <option value="percentage" <?= $type === 'percentage' ? 'selected' : '' ?>>Percentage</option>
+      <option value=""><?= e(t('all_types')) ?></option>
+      <option value="fixed" <?= $type === 'fixed' ? 'selected' : '' ?>><?= e(t('fixed_rent')) ?></option>
+      <option value="percentage" <?= $type === 'percentage' ? 'selected' : '' ?>><?= e(t('percentage')) ?></option>
     </select>
     <select class="form-select filter-status" name="freq">
-      <option value="">All frequencies</option>
-      <option value="monthly" <?= $freq === 'monthly' ? 'selected' : '' ?>>Monthly</option>
-      <option value="quarterly" <?= $freq === 'quarterly' ? 'selected' : '' ?>>Quarterly</option>
-      <option value="display_drive" <?= $freq === 'display_drive' ? 'selected' : '' ?>>Display Drive</option>
+      <option value=""><?= e(t('all_frequencies')) ?></option>
+      <option value="monthly" <?= $freq === 'monthly' ? 'selected' : '' ?>><?= e(t('monthly')) ?></option>
+      <option value="quarterly" <?= $freq === 'quarterly' ? 'selected' : '' ?>><?= e(t('quarterly')) ?></option>
+      <option value="display_drive" <?= $freq === 'display_drive' ? 'selected' : '' ?>><?= e(t('display_drive')) ?></option>
     </select>
     <select class="form-select filter-status" name="expiry">
-      <option value="">Any period state</option>
-      <option value="active" <?= $expiry === 'active' ? 'selected' : '' ?>>Active</option>
-      <option value="soon" <?= $expiry === 'soon' ? 'selected' : '' ?>>Expiring in <?= EXPIRY_WARN_DAYS ?> days</option>
-      <option value="expired" <?= $expiry === 'expired' ? 'selected' : '' ?>>Expired</option>
+      <option value=""><?= e(t('any_period_state')) ?></option>
+      <option value="active" <?= $expiry === 'active' ? 'selected' : '' ?>><?= e(t('active')) ?></option>
+      <option value="soon" <?= $expiry === 'soon' ? 'selected' : '' ?>><?= e(sprintf(t('expiring_in_days_opt'), EXPIRY_WARN_DAYS)) ?></option>
+      <option value="expired" <?= $expiry === 'expired' ? 'selected' : '' ?>><?= e(t('expired')) ?></option>
     </select>
     <button class="btn btn-gold" type="submit"><?= e(t('filter')) ?></button>
   </form>
@@ -100,27 +100,27 @@ pageTitle(t('agreements'), 'Every supplier shelf-rent agreement on record.');
     <table class="table table-luxe align-middle mb-0">
       <thead>
         <tr>
-          <th>Company</th><th>Type</th><th>Rent</th><th>Frequency</th>
-          <th>Period</th><th>State</th><th>Scan</th><th class="text-end">Actions</th>
+          <th><?= e(t('company')) ?></th><th><?= e(t('type')) ?></th><th><?= e(t('rent')) ?></th><th><?= e(t('frequency')) ?></th>
+          <th><?= e(t('period')) ?></th><th><?= e(t('state')) ?></th><th><?= e(t('scan')) ?></th><th class="text-end"><?= e(t('actions')) ?></th>
         </tr>
       </thead>
       <tbody>
       <?php if (!$rows): ?>
-        <tr><td colspan="8" class="text-center py-4 text-muted">No agreements match this filter.</td></tr>
+        <tr><td colspan="8" class="text-center py-4 text-muted"><?= e(t('no_agreements_match')) ?></td></tr>
       <?php endif; ?>
       <?php foreach ($rows as $ag):
-        if ($ag['period_to'] < $today)      $state = ['Expired', 'pill-out'];
-        elseif ($ag['period_to'] <= $limit) $state = ['Expiring soon', 'pill-overdue'];
-        else                                $state = ['Active', 'pill-received'];
+        if ($ag['period_to'] < $today)      $state = [t('expired'), 'pill-out'];
+        elseif ($ag['period_to'] <= $limit) $state = [t('expiring_soon'), 'pill-overdue'];
+        else                                $state = [t('active'), 'pill-received'];
       ?>
         <tr>
           <td>
             <a href="company.php?id=<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?></a>
             <div class="cell-sub"><?= e($ag['ledger_code']) ?><?= $ag['contact_person'] ? ' · ' . e($ag['contact_person']) : '' ?></div>
           </td>
-          <td><?= $ag['rent_type'] === 'fixed' ? 'Fixed' : 'Percentage' ?></td>
-          <td><?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '% of sales' ?></td>
-          <td><?= ucfirst(str_replace('_', ' ', $ag['billing_frequency'])) ?></td>
+          <td><?= $ag['rent_type'] === 'fixed' ? e(t('fixed')) : e(t('percentage')) ?></td>
+          <td><?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '% ' . e(t('of_sales')) ?></td>
+          <td><?= e(freqLabel($ag['billing_frequency'])) ?></td>
           <td><?= date('d M Y', strtotime($ag['period_from'])) ?> → <?= date('d M Y', strtotime($ag['period_to'])) ?></td>
           <td><span class="pill <?= $state[1] ?>"><?= $state[0] ?></span></td>
           <td>

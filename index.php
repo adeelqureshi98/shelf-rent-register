@@ -43,7 +43,7 @@ $recent = $pdo->query(
 )->fetchAll();
 
 layoutHead(t('dashboard'), 'index');
-pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed to date, ' . date('F Y') . '.');
+pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
 ?>
 
 <div class="row g-3 mb-4">
@@ -52,7 +52,7 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
       <div class="stat-icon gold"><i class="bi bi-receipt"></i></div>
       <div class="stat-label"><?= e(t('total_expected')) ?></div>
       <div class="stat-value"><?= money($tot['expected']) ?></div>
-      <div class="stat-note">Billed to date (known amounts)</div>
+      <div class="stat-note"><?= e(t('note_billed_to_date')) ?></div>
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
@@ -60,7 +60,7 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
       <div class="stat-icon green"><i class="bi bi-cash-stack"></i></div>
       <div class="stat-label"><?= e(t('total_received')) ?></div>
       <div class="stat-value"><?= money($tot['received']) ?></div>
-      <div class="stat-note"><?= $tot['expected'] > 0 ? number_format($tot['received'] / $tot['expected'] * 100, 1) : '0.0' ?>% recovery so far</div>
+      <div class="stat-note"><?= e(sprintf(t('recovery_so_far'), $tot['expected'] > 0 ? number_format($tot['received'] / $tot['expected'] * 100, 1) : '0.0')) ?></div>
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
@@ -68,7 +68,7 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
       <div class="stat-icon red"><i class="bi bi-exclamation-octagon"></i></div>
       <div class="stat-label"><?= e(t('total_overdue')) ?></div>
       <div class="stat-value"><?= money($tot['overdue']) ?></div>
-      <div class="stat-note"><?= $tot['overdue_bills'] ?> bill(s) past due · <?= $tot['companies_owing'] ?> company(ies) owing</div>
+      <div class="stat-note"><?= (int)$tot['overdue_bills'] ?> <?= e(t('bills_past_due_label')) ?> · <?= (int)$tot['companies_owing'] ?> <?= e(t('companies_owing_label')) ?></div>
     </div>
   </div>
   <div class="col-md-6 col-xl-3">
@@ -76,7 +76,7 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
       <div class="stat-icon plum"><i class="bi bi-hourglass-split"></i></div>
       <div class="stat-label"><?= e(t('awaited_amounts')) ?></div>
       <div class="stat-value"><?= $tot['awaited_count'] ?></div>
-      <div class="stat-note">Percentage bills waiting for the actual amount · <?= money($tot['due']) ?> still due (not yet late)</div>
+      <div class="stat-note"><?= e(t('note_awaited_pct')) ?> · <?= money($tot['due']) ?> <?= e(t('still_due_not_late')) ?></div>
     </div>
   </div>
 </div>
@@ -85,15 +85,15 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
   <div class="col-xl-7">
     <div class="panel">
       <div class="panel-head">
-        <h2><i class="bi bi-bar-chart-line me-2"></i>Expected vs Received — <?= $year ?></h2>
+        <h2><i class="bi bi-bar-chart-line me-2"></i><?= e(t('expected_vs_received')) ?> — <?= $year ?></h2>
         <div class="legend">
-          <span class="legend-dot exp"></span> Expected
-          <span class="legend-dot rec ms-3"></span> Received
+          <span class="legend-dot exp"></span> <?= e(t('expected')) ?>
+          <span class="legend-dot rec ms-3"></span> <?= e(t('received')) ?>
         </div>
       </div>
       <div class="chart">
         <?php for ($m = 1; $m <= 12; $m++): $c = $chart[$m]; ?>
-          <div class="chart-col" title="<?= date('F', mktime(0, 0, 0, $m, 1)) ?> — Expected <?= money($c['expected']) ?> · Received <?= money($c['received']) ?>">
+          <div class="chart-col" title="<?= date('F', mktime(0, 0, 0, $m, 1)) ?> — <?= e(t('expected')) ?> <?= money($c['expected']) ?> · <?= e(t('received')) ?> <?= money($c['received']) ?>">
             <div class="chart-bars">
               <div class="bar exp" style="height: <?= round($c['expected'] / $chartMax * 100) ?>%"></div>
               <div class="bar rec" style="height: <?= round($c['received'] / $chartMax * 100) ?>%"></div>
@@ -110,11 +110,11 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
         <a class="btn btn-sm btn-outline-gold" href="followups.php"><?= e(t('open_calling_list')) ?></a>
       </div>
       <?php if (!$follow): ?>
-        <p class="empty-note">Nothing outstanding. Every billed company is up to date.</p>
+        <p class="empty-note"><?= e(t('nothing_outstanding')) ?></p>
       <?php else: ?>
         <div class="table-responsive">
           <table class="table table-luxe align-middle mb-0">
-            <thead><tr><th>Company</th><th class="text-end">Overdue</th><th class="text-end">Due</th><th>Oldest due date</th><th></th></tr></thead>
+            <thead><tr><th><?= e(t('company')) ?></th><th class="text-end"><?= e(t('overdue')) ?></th><th class="text-end"><?= e(t('due')) ?></th><th><?= e(t('oldest_due_date')) ?></th><th></th></tr></thead>
             <tbody>
             <?php foreach (array_slice($follow, 0, 6) as $f): ?>
               <tr>
@@ -136,19 +136,19 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
   <div class="col-xl-5">
     <div class="panel alert-panel">
       <div class="panel-head">
-        <h2><i class="bi bi-alarm me-2"></i>Agreements Expiring in <?= EXPIRY_WARN_DAYS ?> Days</h2>
+        <h2><i class="bi bi-alarm me-2"></i><?= e(sprintf(t('agreements_expiring_in'), EXPIRY_WARN_DAYS)) ?></h2>
       </div>
       <?php if (!$expiring): ?>
-        <p class="empty-note">No agreements are ending in the next <?= EXPIRY_WARN_DAYS ?> days.</p>
+        <p class="empty-note"><?= e(sprintf(t('no_expiring'), EXPIRY_WARN_DAYS)) ?></p>
       <?php else: ?>
         <ul class="expiry-list">
         <?php foreach ($expiring as $ag): $days = (int)((strtotime($ag['period_to']) - strtotime(date('Y-m-d'))) / 86400); ?>
           <li>
             <div>
               <a href="company.php?id=<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?></a>
-              <div class="cell-sub">Ends <?= date('d M Y', strtotime($ag['period_to'])) ?> · <?= e($ag['ledger_code']) ?></div>
+              <div class="cell-sub"><?= e(t('ends')) ?> <?= date('d M Y', strtotime($ag['period_to'])) ?> · <?= e($ag['ledger_code']) ?></div>
             </div>
-            <span class="pill pill-overdue"><?= $days === 0 ? 'Ends today' : $days . ' day' . ($days === 1 ? '' : 's') . ' left' ?></span>
+            <span class="pill pill-overdue"><?= $days === 0 ? e(t('ends_today')) : e(sprintf(t($days === 1 ? 'day_left' : 'days_left'), $days)) ?></span>
           </li>
         <?php endforeach; ?>
         </ul>
@@ -156,9 +156,9 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
     </div>
 
     <div class="panel mt-3">
-      <div class="panel-head"><h2><i class="bi bi-clock-history me-2"></i>Recent Payments</h2></div>
+      <div class="panel-head"><h2><i class="bi bi-clock-history me-2"></i><?= e(t('recent_payments')) ?></h2></div>
       <?php if (!$recent): ?>
-        <p class="empty-note">No payments recorded yet.</p>
+        <p class="empty-note"><?= e(t('no_payments_yet')) ?></p>
       <?php else: ?>
         <ul class="activity-list">
         <?php foreach ($recent as $p): ?>
@@ -166,7 +166,7 @@ pageTitle(t('dashboard'), 'The whole shelf-rent picture at a glance — billed t
             <div class="activity-amt"><?= money($p['amount']) ?></div>
             <div class="flex-grow-1">
               <a href="company.php?id=<?= (int)$p['agreement_id'] ?>"><?= e($p['supplier_name']) ?></a>
-              <div class="cell-sub"><?= date('M Y', strtotime($p['bill_month'])) ?> bill · <?= e($p['method']) ?> · by <?= e($p['by_name']) ?></div>
+              <div class="cell-sub"><?= date('M Y', strtotime($p['bill_month'])) ?> <?= e(t('bill_word')) ?> · <?= e($p['method']) ?> · <?= e(t('by_word')) ?> <?= e($p['by_name']) ?></div>
             </div>
             <div class="cell-sub"><?= date('d M', strtotime($p['payment_date'])) ?></div>
           </li>

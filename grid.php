@@ -75,7 +75,7 @@ if ($status !== '') {
 }
 
 layoutHead(t('payment_grid'), 'grid');
-pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bill cell to see details or record a payment.');
+pageTitle(t('payment_grid'), t('grid_subtitle'));
 ?>
 
 <form class="filter-bar" method="get">
@@ -87,17 +87,17 @@ pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bi
   <input type="hidden" name="year" value="<?= $year ?>">
   <div class="input-group filter-search">
     <span class="input-group-text"><i class="bi bi-search"></i></span>
-    <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="Search company or ledger code">
+    <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search_company_placeholder')) ?>">
   </div>
   <select class="form-select filter-status" name="status">
-    <option value="">All statuses</option>
+    <option value=""><?= e(t('all_statuses')) ?></option>
     <?php foreach (['received', 'partial', 'due', 'overdue', 'awaited'] as $s): ?>
       <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= statusLabel($s) ?></option>
     <?php endforeach; ?>
   </select>
   <button class="btn btn-gold" type="submit"><?= e(t('filter')) ?></button>
   <?php if ($q !== '' || $status !== ''): ?>
-    <a class="btn btn-light border" href="grid.php?year=<?= $year ?>">Clear</a>
+    <a class="btn btn-light border" href="grid.php?year=<?= $year ?>"><?= e(t('clear')) ?></a>
   <?php endif; ?>
 </form>
 
@@ -106,7 +106,7 @@ pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bi
     <span class="pill pill-<?= $s ?> me-1"><?= statusLabel($s) ?></span>
   <?php endforeach; ?>
   <span class="pill pill-out me-1"><?= statusLabel('out') ?></span>
-  <span class="pill pill-nobill"><?= statusLabel('nobill') ?> (not a billing month)</span>
+  <span class="pill pill-nobill"><?= statusLabel('nobill') ?> <?= e(t('not_a_billing_month')) ?></span>
 </div>
 
 <div class="panel p-0 overflow-hidden">
@@ -122,7 +122,7 @@ pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bi
       </thead>
       <tbody>
       <?php if (!$agreements): ?>
-        <tr><td colspan="13" class="text-center py-4 text-muted">No companies match this filter.</td></tr>
+        <tr><td colspan="13" class="text-center py-4 text-muted"><?= e(t('no_companies_match')) ?></td></tr>
       <?php endif; ?>
       <?php foreach ($agreements as $ag):
         $startMon = strtotime(date('Y-m-01', strtotime($ag['period_from'])));
@@ -131,15 +131,15 @@ pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bi
         <tr>
           <th class="sticky-col">
             <a href="company.php?id=<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?></a>
-            <div class="cell-sub"><?= e($ag['ledger_code']) ?> · <?= ucfirst(str_replace('_', ' ', $ag['billing_frequency'])) ?> · <?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '%' ?></div>
+            <div class="cell-sub"><?= e($ag['ledger_code']) ?> · <?= e(freqLabel($ag['billing_frequency'])) ?> · <?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '%' ?></div>
           </th>
           <?php for ($m = 1; $m <= 12; $m++):
             $cellTime = mktime(0, 0, 0, $m, 1, $year);
             $bill = $byAg[$ag['id']][$m] ?? null;
             if ($cellTime < $startMon || $cellTime > $endMon): ?>
-              <td class="cell-out" title="Outside the agreement period"></td>
+              <td class="cell-out" title="<?= e(t('outside_period')) ?>"></td>
             <?php elseif (!$bill): ?>
-              <td class="cell-nobill" title="Not a billing month for this agreement">·</td>
+              <td class="cell-nobill" title="<?= e(t('not_billing_month_title')) ?>">·</td>
             <?php else:
               $dim = $status !== '' && $bill['status'] !== $status ? ' dim' : '';
             ?>
@@ -148,7 +148,7 @@ pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bi
                   <span class="pill pill-<?= $bill['status'] ?>"><?= statusLabel($bill['status']) ?></span>
                   <span class="cell-amt"><?= $bill['expected_amount'] === null ? '—' : money($bill['expected_amount']) ?></span>
                   <?php if ($bill['paid'] > 0 && $bill['status'] !== 'received'): ?>
-                    <span class="cell-sub">paid <?= money($bill['paid']) ?></span>
+                    <span class="cell-sub"><?= e(t('paid_lower')) ?> <?= money($bill['paid']) ?></span>
                   <?php endif; ?>
                 </button>
               </td>
@@ -167,87 +167,87 @@ pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bi
     <div class="modal-content luxe-modal">
       <div class="modal-header">
         <div>
-          <h5 class="modal-title" id="bmTitle">Bill</h5>
+          <h5 class="modal-title" id="bmTitle"><?= e(t('bill_title')) ?></h5>
           <div class="cell-sub" id="bmSub"></div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <div class="row g-3 mb-3">
-          <div class="col-6 col-md-3"><div class="mini-stat"><span>Status</span><span class="pill" id="bmStatus"></span></div></div>
-          <div class="col-6 col-md-3"><div class="mini-stat"><span>Expected</span><strong id="bmExpected">—</strong></div></div>
-          <div class="col-6 col-md-3"><div class="mini-stat"><span>Paid</span><strong id="bmPaid">—</strong></div></div>
-          <div class="col-6 col-md-3"><div class="mini-stat"><span>Balance</span><strong id="bmBalance">—</strong></div></div>
+          <div class="col-6 col-md-3"><div class="mini-stat"><span><?= e(t('status')) ?></span><span class="pill" id="bmStatus"></span></div></div>
+          <div class="col-6 col-md-3"><div class="mini-stat"><span><?= e(t('expected')) ?></span><strong id="bmExpected">—</strong></div></div>
+          <div class="col-6 col-md-3"><div class="mini-stat"><span><?= e(t('paid')) ?></span><strong id="bmPaid">—</strong></div></div>
+          <div class="col-6 col-md-3"><div class="mini-stat"><span><?= e(t('balance')) ?></span><strong id="bmBalance">—</strong></div></div>
         </div>
-        <p class="cell-sub mb-3">Due date: <strong id="bmDue"></strong></p>
+        <p class="cell-sub mb-3"><?= e(t('due_date')) ?>: <strong id="bmDue"></strong></p>
 
-        <h6 class="modal-section">Payments on this bill</h6>
+        <h6 class="modal-section"><?= e(t('payments_on_bill')) ?></h6>
         <div id="bmPayments"></div>
 
         <?php if ($write): ?>
         <div id="bmSetAmount" class="action-box d-none">
-          <h6><i class="bi bi-percent me-1"></i>Percentage agreement — enter the actual billed amount</h6>
+          <h6><i class="bi bi-percent me-1"></i><?= e(t('pct_enter_amount')) ?></h6>
           <form method="post" action="payment_action.php" class="row g-2 align-items-end">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="set_amount">
             <input type="hidden" name="bill_id" class="bm-bill-id">
             <input type="hidden" name="back" value="<?= e($back) ?>">
             <div class="col-sm-6">
-              <label class="form-label">Actual billed amount (<?= e(CURRENCY) ?>)</label>
+              <label class="form-label"><?= e(t('actual_billed_amount')) ?> (<?= e(CURRENCY) ?>)</label>
               <input type="number" step="0.01" min="0.01" class="form-control" name="actual_amount" required>
             </div>
-            <div class="col-sm-6"><button class="btn btn-gold" type="submit">Save Amount</button></div>
+            <div class="col-sm-6"><button class="btn btn-gold" type="submit"><?= e(t('save_amount')) ?></button></div>
           </form>
         </div>
 
         <div id="bmPayForm" class="action-box d-none">
-          <h6><i class="bi bi-cash-coin me-1"></i>Record a payment</h6>
+          <h6><i class="bi bi-cash-coin me-1"></i><?= e(t('record_a_payment')) ?></h6>
           <form method="post" action="payment_action.php" class="row g-2">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="record_payment">
             <input type="hidden" name="bill_id" class="bm-bill-id">
             <input type="hidden" name="back" value="<?= e($back) ?>">
             <div class="col-sm-4">
-              <label class="form-label">Amount (<?= e(CURRENCY) ?>)</label>
+              <label class="form-label"><?= e(t('amount')) ?> (<?= e(CURRENCY) ?>)</label>
               <input type="number" step="0.01" min="0.01" class="form-control" id="bmPayAmount" name="amount" required>
             </div>
             <div class="col-sm-4">
-              <label class="form-label">Date</label>
+              <label class="form-label"><?= e(t('date')) ?></label>
               <input type="date" class="form-control" name="payment_date" value="<?= date('Y-m-d') ?>" required>
             </div>
             <div class="col-sm-4">
-              <label class="form-label">Method</label>
+              <label class="form-label"><?= e(t('method')) ?></label>
               <select class="form-select" name="method" id="bmMethod">
                 <option>Cash</option><option>Bank Transfer</option><option>Cheque</option><option>Online</option>
               </select>
             </div>
             <div class="col-sm-4">
-              <label class="form-label">Reference / Cheque No.</label>
-              <input class="form-control" name="reference" placeholder="Optional">
+              <label class="form-label"><?= e(t('reference_cheque')) ?></label>
+              <input class="form-control" name="reference" placeholder="<?= e(t('optional')) ?>">
             </div>
             <div class="col-sm-4 d-none" id="bmChequeWrap">
-              <label class="form-label">Cheque status</label>
+              <label class="form-label"><?= e(t('cheque_status')) ?></label>
               <select class="form-select" name="cheque_status">
                 <option>Pending</option><option>Cleared</option><option>Bounced</option>
               </select>
             </div>
             <div class="col-sm-4">
-              <label class="form-label">Notes</label>
-              <input class="form-control" name="notes" placeholder="Optional">
+              <label class="form-label"><?= e(t('notes')) ?></label>
+              <input class="form-control" name="notes" placeholder="<?= e(t('optional')) ?>">
             </div>
             <div class="col-12">
-              <button class="btn btn-gold" type="submit"><i class="bi bi-check2-circle me-1"></i>Save Payment</button>
-              <span class="cell-sub ms-2">Part payments are fine — the balance stays open.</span>
+              <button class="btn btn-gold" type="submit"><i class="bi bi-check2-circle me-1"></i><?= e(t('save_payment')) ?></button>
+              <span class="cell-sub ms-2"><?= e(t('part_payments_note')) ?></span>
             </div>
           </form>
         </div>
         <?php else: ?>
-          <p class="cell-sub">Your role is read-only, so payments cannot be recorded from this account.</p>
+          <p class="cell-sub"><?= e(t('readonly_note')) ?></p>
         <?php endif; ?>
       </div>
       <div class="modal-footer">
-        <a class="btn btn-light border" id="bmLedger" href="#">Open company ledger</a>
-        <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Close</button>
+        <a class="btn btn-light border" id="bmLedger" href="#"><?= e(t('open_company_ledger')) ?></a>
+        <button type="button" class="btn btn-dark" data-bs-dismiss="modal"><?= e(t('close')) ?></button>
       </div>
     </div>
   </div>
@@ -257,26 +257,37 @@ pageTitle(t('payment_grid'), 'Companies in rows, months in columns. Click any bi
 const BILLS = <?= json_encode($billJs, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 const CAN_WRITE = <?= $write ? 'true' : 'false' ?>;
 const BACK = <?= json_encode($back) ?>;
+const L = {
+  awaited: <?= json_encode(t('awaited')) ?>,
+  noPayments: <?= json_encode(t('no_payments_yet')) ?>,
+  date: <?= json_encode(t('date')) ?>,
+  method: <?= json_encode(t('method')) ?>,
+  reference: <?= json_encode(t('reference')) ?>,
+  receivedBy: <?= json_encode(t('received_by')) ?>,
+  amount: <?= json_encode(t('amount')) ?>,
+  pctAgreement: <?= json_encode(t('pct_agreement')) ?>,
+  fixedRent: <?= json_encode(t('fixed_rent')) ?>,
+};
 function fmt(n){ return '<?= e(CURRENCY) ?> ' + Number(n).toLocaleString('en-US', {maximumFractionDigits: 2}); }
 document.querySelectorAll('[data-bill]').forEach(btn => {
   btn.addEventListener('click', () => {
     const b = BILLS[btn.dataset.bill];
     if (!b) return;
     document.getElementById('bmTitle').textContent = b.supplier + ' — ' + b.month;
-    document.getElementById('bmSub').textContent = b.ledger + (b.type === 'percentage' ? ' · Percentage agreement @ ' + b.rate + '%' : ' · Fixed rent');
+    document.getElementById('bmSub').textContent = b.ledger + (b.type === 'percentage' ? ' · ' + L.pctAgreement + ' @ ' + b.rate + '%' : ' · ' + L.fixedRent);
     const pill = document.getElementById('bmStatus');
     pill.textContent = b.statusLabel;
     pill.className = 'pill pill-' + b.status;
-    document.getElementById('bmExpected').textContent = b.expected === null ? 'Awaited' : fmt(b.expected);
+    document.getElementById('bmExpected').textContent = b.expected === null ? L.awaited : fmt(b.expected);
     document.getElementById('bmPaid').textContent = fmt(b.paid);
     document.getElementById('bmBalance').textContent = b.expected === null ? '—' : fmt(Math.max(0, b.expected - b.paid));
     document.getElementById('bmDue').textContent = b.due;
     document.getElementById('bmLedger').href = 'company.php?id=' + b.agreementId;
     const list = document.getElementById('bmPayments');
     if (!b.payments.length) {
-      list.innerHTML = '<p class="cell-sub">No payments recorded yet.</p>';
+      list.innerHTML = '<p class="cell-sub">' + L.noPayments + '</p>';
     } else {
-      list.innerHTML = '<table class="table table-sm table-luxe"><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Received by</th><th class="text-end">Amount</th><th></th></tr></thead><tbody>' +
+      list.innerHTML = '<table class="table table-sm table-luxe"><thead><tr><th>' + L.date + '</th><th>' + L.method + '</th><th>' + L.reference + '</th><th>' + L.receivedBy + '</th><th class="text-end">' + L.amount + '</th><th></th></tr></thead><tbody>' +
         b.payments.map(p => '<tr><td>' + p.date + '</td><td>' + p.method + (p.cheque ? ' <span class="cell-sub">(' + p.cheque + ')</span>' : '') + '</td><td>' + (p.ref || '—') + '</td><td>' + p.by + '</td><td class="text-end">' + fmt(p.amount) + '</td><td class="text-end"><a class="btn btn-sm btn-light border" target="_blank" href="receipt.php?payment_id=' + p.id + '&back=' + encodeURIComponent(BACK) + '"><i class="bi bi-printer"></i></a></td></tr>').join('') +
         '</tbody></table>';
     }

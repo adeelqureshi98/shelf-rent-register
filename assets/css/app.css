@@ -258,6 +258,7 @@ html[lang="ur"] .page-head h1 { padding-top: 10px; }
 html[lang="ur"] .side-link { line-height: 2; padding-top: 6px; padding-bottom: 6px; }
 html[lang="ur"] .pill { line-height: 1.9; padding-top: 0; padding-bottom: 2px; }
 html[lang="ur"] .btn { line-height: 1.9; }
+html[lang="ur"] .btn-sm { line-height: 1.9; padding-top: 5px; padding-bottom: 8px; }
 html[lang="ur"] .stat-label { letter-spacing: 0; }
 html[lang="ur"] .table-luxe thead th { letter-spacing: 0; }
 html[lang="ur"] .form-label { line-height: 1.9; }
