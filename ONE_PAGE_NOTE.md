@@ -74,6 +74,9 @@ grid, dashboard and reports agree.
 - **Friendly validation, delete confirmations, success messages** — the users
   are non-technical store staff, so every destructive action asks first and
   every save confirms itself.
+- **Self-contained assets** — Bootstrap 5.3 and Bootstrap Icons are vendored
+  under `assets/vendor/`, so the system runs identically on a shop PC with no
+  internet connection; nothing depends on a CDN being reachable.
 
 ## With more time I would add
 
