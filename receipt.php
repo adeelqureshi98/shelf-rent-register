@@ -4,6 +4,7 @@
  * (and from any payment history) — designed to print cleanly on A4.
  */
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/billing.php';
 require_once __DIR__ . '/auth.php';
 
 requireLogin();
@@ -11,7 +12,8 @@ $pdo = db();
 
 $pid = (int)($_GET['payment_id'] ?? 0);
 $st = $pdo->prepare(
-    'SELECT p.*, a.supplier_name, a.ledger_code, a.contact_person, b.bill_month, b.due_date,
+    'SELECT p.*, a.id AS agreement_id, a.supplier_name, a.ledger_code, a.contact_person,
+            a.wht_percent, a.gst_percent, b.bill_month, b.due_date,
             b.expected_amount, u.name AS by_name,
             (SELECT COALESCE(SUM(p2.amount),0) FROM payments p2 WHERE p2.bill_id = b.id AND p2.id <= p.id) AS paid_after,
             (SELECT COALESCE(SUM(p3.amount),0) FROM payments p3 WHERE p3.bill_id = b.id) AS paid_total
@@ -28,9 +30,16 @@ if (!$r) {
     header('Location: index.php');
     exit;
 }
+$u = currentUser();
+if (($u['role'] ?? '') === 'supplier'
+    && (empty($u['company_id']) || (int)$r['agreement_id'] !== (int)$u['company_id'])) {
+    http_response_code(403);
+    exit('This receipt belongs to another supplier.');
+}
+$tax = billTax((float)$r['expected_amount'], (float)($r['wht_percent'] ?? 0), (float)($r['gst_percent'] ?? 0));
 $back = $_GET['back'] ?? 'index.php';
 if (!preg_match('#^[a-z0-9_\-]+\.php(\?[a-z0-9_\-=&%]*)?$#i', $back)) $back = 'index.php';
-$balanceAfter = (float)$r['expected_amount'] - (float)$r['paid_after'];
+$balanceAfter = ($tax['has_tax'] ? $tax['net_payable'] : (float)$r['expected_amount']) - (float)$r['paid_after'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -65,6 +74,11 @@ $balanceAfter = (float)$r['expected_amount'] - (float)$r['paid_after'];
     <?php if ($r['reference']): ?><tr><th>Reference</th><td><?= e($r['reference']) ?></td></tr><?php endif; ?>
     <?php if ($r['notes']): ?><tr><th>Notes</th><td><?= e($r['notes']) ?></td></tr><?php endif; ?>
     <tr><th>Bill amount</th><td><?= moneyFull($r['expected_amount']) ?></td></tr>
+    <?php if ($tax['has_tax']): ?>
+    <tr><th>GST (<?= rtrim(rtrim(number_format($tax['gst_percent'], 2), '0'), '.') ?>%)</th><td>+ <?= moneyFull($tax['gst_amount']) ?></td></tr>
+    <tr><th>WHT (<?= rtrim(rtrim(number_format($tax['wht_percent'], 2), '0'), '.') ?>%)</th><td>− <?= moneyFull($tax['wht_amount']) ?></td></tr>
+    <tr><th>Net payable</th><td><?= moneyFull($tax['net_payable']) ?></td></tr>
+    <?php endif; ?>
     <tr><th>Paid so far (incl. this payment)</th><td><?= moneyFull($r['paid_after']) ?></td></tr>
     <tr><th>Balance remaining</th><td><?= moneyFull(max(0, $balanceAfter)) ?></td></tr>
     <tr class="receipt-amount"><th>Amount received</th><td><?= moneyFull($r['amount']) ?></td></tr>

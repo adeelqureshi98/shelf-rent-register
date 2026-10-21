@@ -46,6 +46,8 @@ foreach (loadBills($pdo) as $b) {
 }
 $rows = array_values(array_filter($rows, fn($r) => $r['open_bills'] > 0));
 usort($rows, fn($a, $b) => ($b['overdue'] <=> $a['overdue']) ?: ($b['awaited'] <=> $a['awaited']) ?: ($b['due'] <=> $a['due']));
+[$page, $pages, $offset] = paginate(count($rows), 20);
+$pageRows = array_slice($rows, $offset, 20);
 
 layoutHead(t('followup_list'), 'followups');
 pageTitle(t('followup_list'), t('followups_subtitle'));
@@ -61,9 +63,9 @@ pageTitle(t('followup_list'), t('followups_subtitle'));
       <?php if (!$rows): ?>
         <tr><td colspan="8" class="text-center py-4 text-muted"><?= e(t('nothing_to_followup')) ?></td></tr>
       <?php endif; ?>
-      <?php foreach ($rows as $i => $r): ?>
+      <?php foreach ($pageRows as $i => $r): ?>
         <tr>
-          <td><?= $i + 1 ?></td>
+          <td><?= $offset + $i + 1 ?></td>
           <td><a href="company.php?id=<?= (int)$r['agreement_id'] ?>"><?= e($r['supplier_name']) ?></a>
               <div class="cell-sub"><?= e($r['ledger_code']) ?> · <?= $r['open_bills'] ?> <?= e(t('open_bills')) ?></div></td>
           <td><?= e($r['contact_person'] ?? '—') ?><?php if ($r['contact_phone']): ?><div class="cell-sub"><?= e($r['contact_phone']) ?></div><?php endif; ?></td>
@@ -78,6 +80,7 @@ pageTitle(t('followup_list'), t('followups_subtitle'));
     </table>
   </div>
 </div>
+<?php pageNav($page, $pages, 'followups.php'); ?>
 <p class="cell-sub mt-2"><?= e(t('print_tip')) ?></p>
 
 <?php layoutFoot(); ?>

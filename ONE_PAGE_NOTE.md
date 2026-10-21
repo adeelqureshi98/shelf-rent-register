@@ -163,6 +163,89 @@ grid, dashboard and reports agree.
   sheet and trading P&L out — what is shown is exactly what the
   register's own data can honestly support.
 
+## Added in v4
+
+An external review suggested modernising the register; v4 implements
+those suggestions in the way that fits this product, and says plainly
+what was NOT done and why.
+
+- **New luxury theme, replaced (owner's explicit order).** The old
+  espresso/ivory look is gone. v4 is a **Deep Slate / Emerald luxury**
+  theme: deep slate surfaces, emerald as the primary accent, gold kept
+  subtle for the brand mark and highlights. A **dark / light toggle**
+  in the sidebar switches between deep-slate dark and clean
+  ivory-slate light; the choice is remembered (cookie + localStorage)
+  and applied before the page paints, so there is no flash of the
+  wrong theme. Urdu (RTL) is fully styled in both modes.
+- **Login page no longer prints any demo logins** (owner's order,
+  security). Demo credentials are shared separately by the admin; the
+  README keeps the local-install defaults for a fresh setup only.
+- **CSRF protection everywhere.** Every form carries a per-session
+  token; a POST with a missing or wrong token is rejected with
+  HTTP 403 and a friendly message (verified in QA).
+- **Real charts (Chart.js, vendored locally — no CDN dependency).**
+  Dashboard: Monthly Recovery Trend (expected vs received per month,
+  Rs tooltips) and a Recovery by Company doughnut, both computed by
+  the same billing engine as every other figure.
+- **Live search** on Agreements and the Payment Grid filters rows as
+  you type (progressive enhancement — the server search still works
+  with JavaScript off). **Pagination** (20 per page, server-side,
+  filters preserved) on Agreements, Follow-ups, Reminders history
+  and Cheques. **Toasts** replace inline flash alerts, submit buttons
+  show a spinner and lock against double-submits, and dashboard KPIs
+  count up (respecting `prefers-reduced-motion`). On phones the
+  Payment Grid becomes per-company cards with month status chips —
+  no more horizontal-scroll struggle.
+- **Tax engine.** Each agreement can carry **WHT % and GST %**
+  (default 0). Net payable = bill amount + GST − WHT, computed once
+  in `billing.php` and shown consistently on the receipt, the company
+  statement, and the new formal **Tax Invoice** (`invoice.php`:
+  invoice number, mart NTN/STRN/address/phone from the new Admin
+  **Settings** page, tax lines, QR code of the invoice summary,
+  print = PDF). Reports gain a **Tax Summary** (per company + CSV).
+  With the default 0% every v1–v3 total is bit-for-bit unchanged —
+  all the original sample baselines were re-verified exactly.
+- **Cheque (PDC) register** (`cheques.php` + `cheques` table):
+  post-dated cheques with bank, date, amount, optional link to a
+  payment record, a "due this week" panel, and a
+  Pending → Cleared / Bounced / Returned flow; every transition is
+  written to the audit log. CSV export in Reports.
+- **Shelf Map** (`shelfmap.php` + `shelves` table): a visual grid of
+  the mart's physical positions — occupied (green, company + rent +
+  period), vacant (grey, dashed), expiring within 30 days (red ring).
+  Agreements can be assigned a shelf; Admin manages the positions
+  (a shelf in use cannot be deleted). Sample shelves are seeded from
+  the demo agreements' locations.
+- **Supplier Portal** (new `supplier` role, `users.company_id`):
+  a supplier login sees ONLY its own dashboard totals, its own
+  statement with invoice downloads, its own agreement, its contract
+  scan download, and can upload payment slips (JPG/PNG/PDF) that
+  staff then Verify or Reject on the company page. Every portal
+  query is scoped server-side to the linked company — QA included a
+  URL-tampering test (another company's statement/invoice) which is
+  refused. Demo login: `supplier / supp123` → Fresh Dairy Foods.
+- **Percentage sales CSV import** (`sales_import.php`): upload
+  `company, month, sales_amount` → awaited percentage bills are
+  filled at each agreement's rate, row-by-row results reported,
+  everything audited. Template CSV downloadable.
+- **WhatsApp Cloud API plumbing (inactive by default).** Settings
+  holds the API token, phone-number ID and template name; when — and
+  only when — an Admin fills all three, the Reminders page gains a
+  "Send via API" action that sends through Meta's official Cloud
+  API. **Honest limit:** automatic WhatsApp sending needs the mart's
+  own WhatsApp Business API account and an approved message
+  template; no credentials are shipped or invented. Until then the
+  one-click wa.me flow remains the WhatsApp path.
+- **Honest limits, unchanged:** a **live POS integration** needs the
+  mart's POS system access/credentials — the CSV import above is the
+  practical stand-in and works with any POS that can export a
+  spreadsheet. **Multi-branch is NOT added:** the original brief is a
+  single-store register; faking branch support would corrupt the
+  totals model, so the register stays honestly single-store.
+- **Data:** fresh installs use the updated `database.sql`; existing
+  v3 databases upgrade with `upgrade_v4.sql` (verified against a
+  real v3 import). Backup & Restore now includes the new tables.
+
 ## With more time I would still add
 
 Per-shelf/per-location rent breakdown, and a read-only API for the

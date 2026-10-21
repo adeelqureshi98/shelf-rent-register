@@ -37,6 +37,27 @@ questions instantly:
 | ![Dashboard in Urdu](screenshots/dashboard-urdu.png) | ![Incentives in Urdu](screenshots/incentives-urdu.png) |
 | Full EN/اردو toggle — UI chrome translated, figures unchanged | Same toggle on every page — headings, labels and notes included |
 
+## What's new in v4
+
+- **Deep Slate / Emerald luxury theme** with a **dark / light toggle**
+  (remembered, no flash on load) — Urdu RTL fully styled in both modes.
+- **Formal Tax Invoice** per bill (NTN/STRN from Settings, GST/WHT lines,
+  net payable, QR code), a per-agreement **WHT % / GST % tax engine**
+  (default 0 — every existing total unchanged), and a Tax Summary report.
+- **Cheque (PDC) register** with due-this-week panel and
+  Pending → Cleared / Bounced / Returned tracking (audit-logged).
+- **Visual Shelf Map** — occupied / vacant / expiring shelf tiles.
+- **Supplier Portal** — suppliers log in and see only their own balances,
+  statement, invoices and agreement, download their contract scan, and
+  upload payment slips for staff verification.
+  Demo supplier login: `supplier / supp123` (Fresh Dairy Foods).
+- **Percentage sales CSV import** that fills awaited percentage bills.
+- **CSRF protection on every form**, Chart.js dashboard charts, live
+  search, pagination, toasts, and a mobile card view for the grid.
+- **WhatsApp Cloud API plumbing** (Settings) — inactive until the mart
+  connects its own WhatsApp Business API account; one-click wa.me
+  remains the default. Upgrading a v3 database: run `upgrade_v4.sql`.
+
 ## Features
 
 - **Dashboard** — total expected / received / overdue, recovery %, monthly
@@ -119,6 +140,7 @@ the billing rules are in [ONE_PAGE_NOTE.md](ONE_PAGE_NOTE.md).
 | Admin      | `admin`      | `admin123` |
 | Accountant | `accountant` | `acc123`   |
 | Viewer     | `viewer`     | `view123`  |
+| Supplier   | `supplier`   | `supp123` (portal only, Fresh Dairy Foods) |
 
 > Change these passwords immediately on any real deployment (Users page,
 > Admin only).
@@ -132,8 +154,15 @@ agreements.php       Agreement list + filters + delete
 agreement_form.php   Add / edit agreement (+ scan upload)
 company.php          Company ledger (agreement, bills, payments)
 receipt.php          Printable payment receipt
+invoice.php          Formal tax invoice per bill (QR, print = PDF)
 statement.php        Supplier statement (printable, running balance)
-reports.php          Reports hub (8 reports, all with CSV downloads)
+cheques.php          Cheque (PDC) register — due this week, bounce tracking
+shelfmap.php         Visual shelf map (occupied / vacant / expiring)
+settings.php         Mart NTN/STRN + WhatsApp Cloud API settings (Admin)
+portal.php           Supplier portal (own company only, slip uploads)
+portal_download.php  Supplier's own contract scan download (scoped)
+sales_import.php     Percentage sales CSV import (fills awaited bills)
+reports.php          Reports hub (10+ reports, all with CSV downloads)
 reports_export.php   CSV export for every report
 followups.php        Follow-up calling list
 incentives.php       Incentive list + totals (+ delete, Admin)
@@ -150,10 +179,13 @@ auth.php             Sessions, role guards, CSRF, escaping, audit()
 lang.php             EN/Urdu dictionary + language toggle
 db.php config.php    PDO connection + all settings (DB_* constants)
 layout.php           Shared luxury sidebar layout (RTL-aware)
-assets/css/app.css   Theme (espresso + gold + ivory)
+assets/css/app.css   Theme (Deep Slate / Emerald luxury, light + dark)
+assets/js/app.js     Theme toggle, toasts, count-up, live search
+assets/vendor/       Vendored Bootstrap, Chart.js, qrcodejs (no CDN needed)
 uploads/             Scanned agreements (PHP execution disabled)
 database.sql         Schema + default users + sample data (fresh install)
 upgrade_v2.sql       v1 → v2 upgrade (existing installs only)
+upgrade_v4.sql       v3 → v4 upgrade (existing installs only)
 ```
 
 ## Sample data at a glance

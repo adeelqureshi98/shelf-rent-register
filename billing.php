@@ -115,6 +115,7 @@ function loadBills(PDO $pdo, ?int $year = null, ?int $agreementId = null): array
     $sql = 'SELECT b.*, a.supplier_name, a.ledger_code, a.rent_type,
                    a.rent_amount, a.percentage_rate, a.billing_frequency,
                    a.period_from, a.period_to,
+                   a.wht_percent, a.gst_percent, a.shelf_id,
                    COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.bill_id = b.id), 0) AS paid
               FROM bills b
               JOIN agreements a ON a.id = b.agreement_id
@@ -493,4 +494,289 @@ function cashReceived(PDO $pdo, int $year): array
         'total_count' => $count, 'total_amount' => $amount,
         'incentive_received_total' => $incReceived,
     ];
+}
+
+/** "October 2026" style label for a bill_month date. */
+function monthLabel(string $billMonth): string
+{
+    return date('F Y', strtotime($billMonth));
+}
+
+/** "4.5%" style label for a percentage rate value. */
+function pct($rate): string
+{
+    if ($rate === null || $rate === '') return '—';
+    return rtrim(rtrim(number_format((float)$rate, 2), '0'), '.') . '%';
+}
+
+/* ============================================================
+ * v4 additions — settings, tax engine, chart data, cheques,
+ * shelves, supplier slips and WhatsApp Cloud API plumbing.
+ * Everything here is ADDITIVE: tax rates default to 0 and the
+ * new tables start empty, so every v1–v3 figure is unchanged
+ * until a user deliberately configures them.
+ * ============================================================ */
+
+/* ---------------- Settings (key/value, Admin-managed) ---------------- */
+function getSettings(PDO $pdo): array
+{
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $cache = [
+        'mart_ntn' => '', 'mart_strn' => '', 'mart_address' => '', 'mart_phone' => '',
+        'wa_api_token' => '', 'wa_phone_number_id' => '', 'wa_template' => '',
+    ];
+    try {
+        foreach ($pdo->query('SELECT skey, svalue FROM settings')->fetchAll() as $r) {
+            $cache[$r['skey']] = $r['svalue'];
+        }
+    } catch (Throwable $ex) {
+        // settings table not migrated yet — defaults apply.
+    }
+    return $cache;
+}
+
+function getSetting(PDO $pdo, string $key, string $default = ''): string
+{
+    $s = getSettings($pdo);
+    return isset($s[$key]) && $s[$key] !== '' ? $s[$key] : $default;
+}
+
+function setSetting(PDO $pdo, string $key, string $value): void
+{
+    $pdo->prepare('INSERT INTO settings (skey, svalue) VALUES (:k, :v)
+                   ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)')
+        ->execute([':k' => $key, ':v' => $value]);
+}
+
+/* ---------------- Tax engine ----------------
+ * WHT (withholding tax) and GST are configured per agreement
+ * (percentages, default 0). For a bill of amount A:
+ *   gst_amount = A × gst% / 100        (added on top)
+ *   wht_amount = A × wht% / 100        (withheld by the mart)
+ *   net_payable = A + gst − wht
+ * With both rates 0 every figure collapses to A, so receipts,
+ * statements and reports keep their exact v1–v3 numbers. */
+function billTax(float $amount, float $whtPct, float $gstPct): array
+{
+    $gst = round($amount * $gstPct / 100, 2);
+    $wht = round($amount * $whtPct / 100, 2);
+    return [
+        'amount'      => $amount,
+        'gst_percent' => $gstPct,
+        'wht_percent' => $whtPct,
+        'gst_amount'  => $gst,
+        'wht_amount'  => $wht,
+        'net_payable' => round($amount + $gst - $wht, 2),
+        'has_tax'     => ($gstPct > 0 || $whtPct > 0),
+    ];
+}
+
+/** Tax view of one loaded bill row (loadBills carries the agreement's rates). */
+function taxForBill(array $bill): array
+{
+    if ($bill['expected_amount'] === null) {
+        return billTax(0.0, 0.0, 0.0) + ['has_tax' => false];
+    }
+    return billTax((float)$bill['expected_amount'], (float)($bill['wht_percent'] ?? 0), (float)($bill['gst_percent'] ?? 0));
+}
+
+/**
+ * Tax summary for one year: totals over every bill raised in that
+ * year (bill-month basis), per company and in total. Only bills
+ * with a known amount and a non-zero rate contribute money.
+ */
+function taxSummary(PDO $pdo, int $year): array
+{
+    $per = [];
+    $tot = ['bills' => 0, 'amount' => 0.0, 'gst' => 0.0, 'wht' => 0.0, 'net' => 0.0];
+    foreach (loadBills($pdo, $year) as $b) {
+        $tax = taxForBill($b);
+        if (!$tax['has_tax'] || $b['expected_amount'] === null) continue;
+        $id = $b['agreement_id'];
+        $per[$id] ??= ['supplier_name' => $b['supplier_name'], 'ledger_code' => $b['ledger_code'],
+                       'bills' => 0, 'amount' => 0.0, 'gst' => 0.0, 'wht' => 0.0, 'net' => 0.0];
+        foreach (['amount', 'gst', 'wht', 'net'] as $k) {
+            $v = $k === 'gst' ? $tax['gst_amount'] : ($k === 'wht' ? $tax['wht_amount'] : ($k === 'net' ? $tax['net_payable'] : $tax['amount']));
+            $per[$id][$k] += $v;
+            $tot[$k] += $v;
+        }
+        $per[$id]['bills']++;
+        $tot['bills']++;
+    }
+    return ['per_company' => $per, 'total' => $tot, 'year' => $year];
+}
+
+/* ---------------- Dashboard chart data ---------------- */
+/** Expected vs received per month of one year (bills by bill-month). */
+function monthlyTrend(PDO $pdo, int $year): array
+{
+    $out = [];
+    for ($m = 1; $m <= 12; $m++) $out[$m] = ['expected' => 0.0, 'received' => 0.0];
+    foreach (loadBills($pdo, $year) as $b) {
+        if ($b['expected_amount'] === null) continue;
+        $m = (int)date('n', strtotime($b['bill_month']));
+        $out[$m]['expected'] += (float)$b['expected_amount'];
+        $out[$m]['received'] += min($b['paid'], (float)$b['expected_amount']);
+    }
+    return $out;
+}
+
+/** Recovery (received money) grouped by company, biggest first. */
+function recoveryByCompany(PDO $pdo): array
+{
+    $per = [];
+    foreach (loadBills($pdo) as $b) {
+        if ($b['expected_amount'] === null) continue;
+        $name = $b['supplier_name'];
+        $per[$name] = ($per[$name] ?? 0.0) + min($b['paid'], (float)$b['expected_amount']);
+    }
+    $per = array_filter($per, fn($v) => $v > 0);
+    arsort($per);
+    return $per;
+}
+
+/* ---------------- Cheques (PDC register) ---------------- */
+function loadCheques(PDO $pdo, ?string $status = null, ?int $agreementId = null): array
+{
+    $sql = 'SELECT c.*, a.supplier_name, a.ledger_code
+              FROM cheques c JOIN agreements a ON a.id = c.agreement_id WHERE 1 = 1';
+    $args = [];
+    if ($status !== null && $status !== '') { $sql .= ' AND c.status = :s'; $args[':s'] = $status; }
+    if ($agreementId !== null) { $sql .= ' AND c.agreement_id = :ag'; $args[':ag'] = $agreementId; }
+    $sql .= ' ORDER BY c.cheque_date, c.id';
+    $st = $pdo->prepare($sql);
+    $st->execute($args);
+    return $st->fetchAll();
+}
+
+function chequeStatusLabel(string $s): string
+{
+    if (function_exists('t')) {
+        $map = ['Pending' => 'pending', 'Cleared' => 'received', 'Bounced' => 'cheque_bounced', 'Returned' => 'cheque_returned'];
+        if (isset($map[$s])) return t($map[$s]);
+    }
+    return $s;
+}
+
+function slipStatusLabel(string $s): string
+{
+    if (function_exists('t')) {
+        $map = ['Pending' => 'pending_review', 'Verified' => 'verified', 'Rejected' => 'rejected'];
+        if (isset($map[$s])) return t($map[$s]);
+    }
+    return $s;
+}
+
+/** Outstanding balance of one bill (0 for awaited bills). */
+function statementBalance(array $bill): float
+{
+    if (($bill['expected_amount'] ?? null) === null) return 0.0;
+    return max(0.0, (float)$bill['expected_amount'] - (float)($bill['paid'] ?? 0));
+}
+
+/* ---------------- Shelves / shelf map ---------------- */
+function loadShelves(PDO $pdo): array
+{
+    try {
+        return $pdo->query('SELECT * FROM shelves ORDER BY sort_order, label')->fetchAll();
+    } catch (Throwable $ex) {
+        return [];
+    }
+}
+
+/** agreement_id => shelf row, for agreements that have a shelf assigned. */
+function shelfByAgreement(PDO $pdo): array
+{
+    $out = [];
+    try {
+        $rows = $pdo->query(
+            'SELECT a.id AS agreement_id, s.* FROM agreements a JOIN shelves s ON s.id = a.shelf_id'
+        )->fetchAll();
+        foreach ($rows as $r) $out[(int)$r['agreement_id']] = $r;
+    } catch (Throwable $ex) {
+        // pre-v4 database
+    }
+    return $out;
+}
+
+/* ---------------- Supplier payment slips ---------------- */
+function loadSlips(PDO $pdo, ?int $agreementId = null, ?string $status = null): array
+{
+    $sql = 'SELECT ps.*, a.supplier_name, a.ledger_code, u.name AS uploaded_name, r.name AS reviewer_name
+              FROM payment_slips ps
+              JOIN agreements a ON a.id = ps.agreement_id
+              JOIN users u ON u.id = ps.uploaded_by
+              LEFT JOIN users r ON r.id = ps.reviewed_by
+             WHERE 1 = 1';
+    $args = [];
+    if ($agreementId !== null) { $sql .= ' AND ps.agreement_id = :ag'; $args[':ag'] = $agreementId; }
+    if ($status !== null && $status !== '') { $sql .= ' AND ps.status = :s'; $args[':s'] = $status; }
+    $sql .= ' ORDER BY ps.created_at DESC, ps.id DESC';
+    $st = $pdo->prepare($sql);
+    $st->execute($args);
+    return $st->fetchAll();
+}
+
+/* ---------------- WhatsApp Cloud API (plumbing) ----------------
+ * Inactive until an Admin fills the API token, phone-number ID
+ * and template name on the Settings page. When configured, a
+ * reminder can be sent through the official Cloud API; until
+ * then the one-click wa.me flow is the only WhatsApp path and
+ * this function is never called. No credentials ship with the
+ * app — nothing is invented or hard-coded.
+ * Returns [bool ok, string message]. */
+function whatsappApiConfigured(PDO $pdo): bool
+{
+    return getSetting($pdo, 'wa_api_token') !== ''
+        && getSetting($pdo, 'wa_phone_number_id') !== ''
+        && getSetting($pdo, 'wa_template') !== '';
+}
+
+function whatsappApiSend(PDO $pdo, string $toDigits, array $templateParams): array
+{
+    if (!whatsappApiConfigured($pdo)) {
+        return [false, 'WhatsApp Cloud API is not configured in Settings.'];
+    }
+    $url = 'https://graph.facebook.com/v21.0/' . rawurlencode(getSetting($pdo, 'wa_phone_number_id')) . '/messages';
+    $components = [];
+    if ($templateParams) {
+        $params = [];
+        foreach ($templateParams as $p) $params[] = ['type' => 'text', 'text' => (string)$p];
+        $components[] = ['type' => 'body', 'parameters' => $params];
+    }
+    $payload = [
+        'messaging_product' => 'whatsapp',
+        'to' => $toDigits,
+        'type' => 'template',
+        'template' => [
+            'name' => getSetting($pdo, 'wa_template'),
+            'language' => ['code' => 'en'],
+            'components' => $components,
+        ],
+    ];
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . getSetting($pdo, 'wa_api_token'),
+        ],
+        CURLOPT_POSTFIELDS => json_encode($payload),
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $err  = curl_error($ch);
+    curl_close($ch);
+    if ($resp === false) {
+        return [false, 'WhatsApp API request failed: ' . $err];
+    }
+    if ($code >= 200 && $code < 300) {
+        return [true, 'Sent via WhatsApp Cloud API.'];
+    }
+    $data = json_decode((string)$resp, true);
+    $msg = $data['error']['message'] ?? ('HTTP ' . $code);
+    return [false, 'WhatsApp API error: ' . $msg];
 }

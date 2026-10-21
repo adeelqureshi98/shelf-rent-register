@@ -12,24 +12,10 @@ $follow   = followUps($pdo);
 $expiring = expiringSoon($pdo);
 $incTot   = incentiveTotals($pdo);
 
-/* Monthly expected vs received for the current year (chart). */
+/* Monthly expected vs received for the current year (Chart.js). */
 $year  = (int)date('Y');
-$bills = loadBills($pdo, $year);
-$chart = [];
-for ($m = 1; $m <= 12; $m++) {
-    $chart[$m] = ['expected' => 0.0, 'received' => 0.0];
-}
-foreach ($bills as $b) {
-    $m = (int)date('n', strtotime($b['bill_month']));
-    if ($b['expected_amount'] !== null) {
-        $chart[$m]['expected'] += (float)$b['expected_amount'];
-        $chart[$m]['received'] += min($b['paid'], (float)$b['expected_amount']);
-    }
-}
-$chartMax = 1.0;
-foreach ($chart as $c) {
-    $chartMax = max($chartMax, $c['expected'], $c['received']);
-}
+$chart = monthlyTrend($pdo, $year);
+$byCompany = recoveryByCompany($pdo);
 
 /* Recent payment activity (latest 8). */
 $recent = $pdo->query(
@@ -51,7 +37,7 @@ pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
     <div class="stat-card">
       <div class="stat-icon gold"><i class="bi bi-receipt"></i></div>
       <div class="stat-label"><?= e(t('total_expected')) ?></div>
-      <div class="stat-value"><?= money($tot['expected']) ?></div>
+      <div class="stat-value" data-countup="<?= (int)$tot['expected'] ?>" data-prefix="<?= e(cfg('currency')) ?> "><?= money($tot['expected']) ?></div>
       <div class="stat-note"><?= e(t('note_billed_to_date')) ?></div>
     </div>
   </div>
@@ -59,7 +45,7 @@ pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
     <div class="stat-card">
       <div class="stat-icon green"><i class="bi bi-cash-stack"></i></div>
       <div class="stat-label"><?= e(t('total_received')) ?></div>
-      <div class="stat-value"><?= money($tot['received']) ?></div>
+      <div class="stat-value" data-countup="<?= (int)$tot['received'] ?>" data-prefix="<?= e(cfg('currency')) ?> "><?= money($tot['received']) ?></div>
       <div class="stat-note"><?= e(sprintf(t('recovery_so_far'), $tot['expected'] > 0 ? number_format($tot['received'] / $tot['expected'] * 100, 1) : '0.0')) ?></div>
     </div>
   </div>
@@ -67,7 +53,7 @@ pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
     <div class="stat-card danger">
       <div class="stat-icon red"><i class="bi bi-exclamation-octagon"></i></div>
       <div class="stat-label"><?= e(t('total_overdue')) ?></div>
-      <div class="stat-value"><?= money($tot['overdue']) ?></div>
+      <div class="stat-value" data-countup="<?= (int)$tot['overdue'] ?>" data-prefix="<?= e(cfg('currency')) ?> "><?= money($tot['overdue']) ?></div>
       <div class="stat-note"><?= (int)$tot['overdue_bills'] ?> <?= e(t('bills_past_due_label')) ?> · <?= (int)$tot['companies_owing'] ?> <?= e(t('companies_owing_label')) ?></div>
     </div>
   </div>
@@ -75,7 +61,7 @@ pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
     <div class="stat-card">
       <div class="stat-icon plum"><i class="bi bi-hourglass-split"></i></div>
       <div class="stat-label"><?= e(t('awaited_amounts')) ?></div>
-      <div class="stat-value"><?= $tot['awaited_count'] ?></div>
+      <div class="stat-value" data-countup="<?= (int)$tot['awaited_count'] ?>"><?= $tot['awaited_count'] ?></div>
       <div class="stat-note"><?= e(t('note_awaited_pct')) ?> · <?= money($tot['due']) ?> <?= e(t('still_due_not_late')) ?></div>
     </div>
   </div>
@@ -85,23 +71,13 @@ pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
   <div class="col-xl-7">
     <div class="panel">
       <div class="panel-head">
-        <h2><i class="bi bi-bar-chart-line me-2"></i><?= e(t('expected_vs_received')) ?> — <?= $year ?></h2>
+        <h2><i class="bi bi-bar-chart-line me-2"></i><?= e(t('monthly_recovery_trend')) ?> — <?= $year ?></h2>
         <div class="legend">
           <span class="legend-dot exp"></span> <?= e(t('expected')) ?>
           <span class="legend-dot rec ms-3"></span> <?= e(t('received')) ?>
         </div>
       </div>
-      <div class="chart">
-        <?php for ($m = 1; $m <= 12; $m++): $c = $chart[$m]; ?>
-          <div class="chart-col" title="<?= date('F', mktime(0, 0, 0, $m, 1)) ?> — <?= e(t('expected')) ?> <?= money($c['expected']) ?> · <?= e(t('received')) ?> <?= money($c['received']) ?>">
-            <div class="chart-bars">
-              <div class="bar exp" style="height: <?= round($c['expected'] / $chartMax * 100) ?>%"></div>
-              <div class="bar rec" style="height: <?= round($c['received'] / $chartMax * 100) ?>%"></div>
-            </div>
-            <div class="chart-month"><?= date('M', mktime(0, 0, 0, $m, 1)) ?></div>
-          </div>
-        <?php endfor; ?>
-      </div>
+      <div class="chart-box"><canvas id="trendChart" aria-label="<?= e(t('monthly_recovery_trend')) ?>"></canvas></div>
     </div>
 
     <div class="panel mt-3">
@@ -199,7 +175,72 @@ pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
         <div class="col-6"><div class="mini-stat"><span><?= e(t('total_receivables')) ?></span><strong><?= money(financialPosition($pdo)['total_outstanding']) ?></strong></div></div>
       </div>
     </div>
+
+    <div class="panel mt-3">
+      <div class="panel-head">
+        <h2><i class="bi bi-pie-chart me-2"></i><?= e(t('recovery_by_company')) ?></h2>
+      </div>
+      <div class="chart-box-sm"><canvas id="companyChart" aria-label="<?= e(t('recovery_by_company')) ?>"></canvas></div>
+    </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.Chart) return;
+  var cs = getComputedStyle(document.documentElement);
+  Chart.defaults.color = cs.getPropertyValue('--muted').trim() || '#67766c';
+  Chart.defaults.borderColor = cs.getPropertyValue('--line').trim() || '#d9e0d8';
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  var cur = <?= json_encode(cfg('currency')) ?>;
+  var fmtRs = function (v) { return cur + ' ' + Number(v).toLocaleString('en-US'); };
+  window.__srrCharts = [];
+  var trend = new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+      labels: <?= json_encode(array_map(fn($m) => date('M', mktime(0, 0, 0, $m, 1)), range(1, 12))) ?>,
+      datasets: [
+        { label: <?= json_encode(t('expected')) ?>, data: <?= json_encode(array_map(fn($c) => $c['expected'], array_values($chart))) ?>,
+          backgroundColor: 'rgba(169,189,176,.75)', borderRadius: 5, maxBarThickness: 16 },
+        { label: <?= json_encode(t('received')) ?>, data: <?= json_encode(array_map(fn($c) => $c['received'], array_values($chart))) ?>,
+          backgroundColor: 'rgba(11,110,79,.88)', borderRadius: 5, maxBarThickness: 16 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + fmtRs(ctx.parsed.y); } } }
+      },
+      scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return fmtRs(v); }, maxTicksLimit: 6 }, grid: { drawBorder: false } },
+                x: { grid: { display: false } } }
+    }
+  });
+  window.__srrCharts.push(trend);
+  <?php
+  $top = array_slice($byCompany, 0, 5, true);
+  $rest = array_sum(array_slice($byCompany, 5, null, true));
+  if ($rest > 0) $top['Other'] = $rest;
+  ?>
+  var comp = new Chart(document.getElementById('companyChart'), {
+    type: 'doughnut',
+    data: {
+      labels: <?= json_encode(array_keys($top)) ?>,
+      datasets: [{ data: <?= json_encode(array_values($top)) ?>,
+        backgroundColor: ['#0b6e4f', '#128a64', '#c9a227', '#41544a', '#7fae97', '#9db8a9'],
+        borderWidth: 2, borderColor: 'rgba(127,127,127,.15)' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '58%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function (ctx) { return ' ' + ctx.label + ': ' + fmtRs(ctx.parsed); } } }
+      }
+    }
+  });
+  window.__srrCharts.push(comp);
+});
+</script>
 
 <?php layoutFoot(); ?>

@@ -87,7 +87,7 @@ pageTitle(t('payment_grid'), t('grid_subtitle'));
   <input type="hidden" name="year" value="<?= $year ?>">
   <div class="input-group filter-search">
     <span class="input-group-text"><i class="bi bi-search"></i></span>
-    <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search_company_placeholder')) ?>">
+    <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search_company_placeholder')) ?>" data-livesearch-input="#gridArea">
   </div>
   <select class="form-select filter-status" name="status">
     <option value=""><?= e(t('all_statuses')) ?></option>
@@ -99,6 +99,9 @@ pageTitle(t('payment_grid'), t('grid_subtitle'));
   <?php if ($q !== '' || $status !== ''): ?>
     <a class="btn btn-light border" href="grid.php?year=<?= $year ?>"><?= e(t('clear')) ?></a>
   <?php endif; ?>
+  <?php if ($write): ?>
+    <a class="btn btn-light border" href="sales_import.php"><i class="bi bi-upload me-1"></i> <?= e(t('sales_import')) ?></a>
+  <?php endif; ?>
 </form>
 
 <div class="legend mb-3">
@@ -109,7 +112,8 @@ pageTitle(t('payment_grid'), t('grid_subtitle'));
   <span class="pill pill-nobill"><?= statusLabel('nobill') ?> <?= e(t('not_a_billing_month')) ?></span>
 </div>
 
-<div class="panel p-0 overflow-hidden">
+<div id="gridArea">
+<div class="panel p-0 overflow-hidden grid-table-wrap">
   <div class="table-responsive grid-wrap">
     <table class="table grid-table align-middle mb-0">
       <thead>
@@ -128,7 +132,7 @@ pageTitle(t('payment_grid'), t('grid_subtitle'));
         $startMon = strtotime(date('Y-m-01', strtotime($ag['period_from'])));
         $endMon   = strtotime(date('Y-m-01', strtotime($ag['period_to'])));
       ?>
-        <tr>
+        <tr data-search="<?= e(strtolower($ag['supplier_name'] . ' ' . $ag['ledger_code'])) ?>">
           <th class="sticky-col">
             <a href="company.php?id=<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?></a>
             <div class="cell-sub"><?= e($ag['ledger_code']) ?> · <?= e(freqLabel($ag['billing_frequency'])) ?> · <?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '%' ?></div>
@@ -160,6 +164,53 @@ pageTitle(t('payment_grid'), t('grid_subtitle'));
     </table>
   </div>
 </div>
+
+<!-- Mobile card view (CSS swaps table → cards on small screens) -->
+<div class="grid-cards mt-3">
+  <?php foreach ($agreements as $ag):
+    $startMon = strtotime(date('Y-m-01', strtotime($ag['period_from'])));
+    $endMon   = strtotime(date('Y-m-01', strtotime($ag['period_to'])));
+    $yExp = 0.0; $yPaid = 0.0;
+    foreach ($byAg[$ag['id']] ?? [] as $bb) {
+        if ($bb['expected_amount'] !== null) { $yExp += (float)$bb['expected_amount']; $yPaid += min($bb['paid'], (float)$bb['expected_amount']); }
+    }
+  ?>
+    <div class="gcard" data-search="<?= e(strtolower($ag['supplier_name'] . ' ' . $ag['ledger_code'])) ?>">
+      <div class="gcard-head">
+        <div>
+          <a class="gcard-name" href="company.php?id=<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?></a>
+          <div class="cell-sub"><?= e($ag['ledger_code']) ?> · <?= e(freqLabel($ag['billing_frequency'])) ?></div>
+        </div>
+        <div class="text-end">
+          <div class="cell-sub"><?= e(t('paid')) ?> / <?= e(t('expected')) ?></div>
+          <strong><?= money($yPaid) ?></strong> <span class="cell-sub">/ <?= money($yExp) ?></span>
+        </div>
+      </div>
+      <div class="chip-row">
+        <?php for ($m = 1; $m <= 12; $m++):
+          $cellTime = mktime(0, 0, 0, $m, 1, $year);
+          $bill = $byAg[$ag['id']][$m] ?? null;
+          $mname = date('M', mktime(0, 0, 0, $m, 1));
+          if ($cellTime < $startMon || $cellTime > $endMon): ?>
+            <span class="mchip out"><span class="mname"><?= $mname ?></span> ·</span>
+          <?php elseif (!$bill): ?>
+            <span class="mchip out"><span class="mname"><?= $mname ?></span> —</span>
+          <?php else: ?>
+            <button type="button" class="mchip" data-bill="<?= (int)$bill['id'] ?>" data-bs-toggle="modal" data-bs-target="#billModal">
+              <span class="mname"><?= $mname ?></span>
+              <span class="pill pill-<?= $bill['status'] ?>"><?= statusLabel($bill['status']) ?></span>
+              <span class="cell-amt"><?= $bill['expected_amount'] === null ? '' : money($bill['expected_amount']) ?></span>
+            </button>
+          <?php endif; ?>
+        <?php endfor; ?>
+      </div>
+    </div>
+  <?php endforeach; ?>
+  <?php if (!$agreements): ?>
+    <p class="text-center py-4 text-muted"><?= e(t('no_companies_match')) ?></p>
+  <?php endif; ?>
+</div>
+</div><!-- /#gridArea -->
 
 <!-- Bill detail modal -->
 <div class="modal fade" id="billModal" tabindex="-1" aria-hidden="true">

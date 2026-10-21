@@ -11,6 +11,24 @@ requireLogin();
 $pdo = db();
 syncBills($pdo);
 
+/* Supplier slip review (Admin / Accountant): a slip uploaded in
+ * the Supplier Portal is evidence, not a payment — staff verify
+ * it against the bank record before trusting it. */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'slip_review') {
+    requireRole(['admin', 'accountant']);
+    checkCsrf();
+    $slipId = (int)($_POST['slip_id'] ?? 0);
+    $status = $_POST['status'] ?? '';
+    if ($slipId > 0 && in_array($status, ['Verified', 'Rejected'], true)) {
+        $pdo->prepare('UPDATE payment_slips SET status = :s, reviewed_by = :u, reviewed_at = NOW() WHERE id = :id')
+            ->execute([':s' => $status, ':u' => currentUser()['id'], ':id' => $slipId]);
+        audit($pdo, 'slip_' . strtolower($status), 'payment_slip', $slipId, 'Payment slip #' . $slipId . ' marked ' . $status . '.');
+        flash('success', 'Slip ' . strtolower($status) . '.');
+    }
+    header('Location: company.php?id=' . (int)($_POST['agreement_id'] ?? 0));
+    exit;
+}
+
 $id = (int)($_GET['id'] ?? 0);
 $st = $pdo->prepare('SELECT * FROM agreements WHERE id = :id');
 $st->execute([':id' => $id]);
@@ -96,6 +114,9 @@ layoutHead($ag['supplier_name'], 'agreements');
           <td class="text-end"><?= $bal === null ? '—' : money(max(0, $bal)) ?></td>
           <td><span class="pill pill-<?= $b['status'] ?>"><?= statusLabel($b['status']) ?></span></td>
           <td class="text-end text-nowrap">
+            <?php if ($b['expected_amount'] !== null): ?>
+              <a class="btn btn-sm btn-light border" target="_blank" href="invoice.php?bill=<?= (int)$b['id'] ?>"><i class="bi bi-file-earmark-text"></i> <?= e(t('invoice')) ?></a>
+            <?php endif; ?>
             <button class="btn btn-sm btn-light border" data-bs-toggle="collapse" data-bs-target="#bill-<?= (int)$b['id'] ?>"><?= e(t('history')) ?></button>
             <?php if ($write && $b['expected_amount'] === null): ?>
               <button class="btn btn-sm btn-gold" data-bs-toggle="collapse" data-bs-target="#bill-<?= (int)$b['id'] ?>"><?= e(t('enter_amount')) ?></button>
@@ -215,5 +236,32 @@ layoutHead($ag['supplier_name'], 'agreements');
     </table>
   </div>
 </div>
+
+<?php $slips = loadSlips($pdo, $id); if ($slips): ?>
+<div class="panel mt-3">
+  <h2 class="panel-title"><i class="bi bi-cloud-arrow-up me-2"></i><?= e(t('payment_slips')) ?></h2>
+  <ul class="activity-list">
+    <?php foreach ($slips as $s): ?>
+      <li>
+        <span class="flex-grow-1">
+          <a href="uploads/slips/<?= e($s['file_name']) ?>" target="_blank"><?= e($s['file_name']) ?></a>
+          <span class="cell-sub">· <?= date('d M Y', strtotime($s['created_at'])) ?><?= $s['amount_claimed'] !== null ? ' · ' . money($s['amount_claimed']) : '' ?><?= $s['slip_date'] ? ' · ' . date('d M Y', strtotime($s['slip_date'])) : '' ?><?= $s['note'] ? ' · ' . e($s['note']) : '' ?></span>
+        </span>
+        <span class="pill <?= ['Pending' => 'pill-pending', 'Verified' => 'pill-received', 'Rejected' => 'pill-overdue'][$s['status']] ?? 'pill-pending' ?>"><?= e(slipStatusLabel($s['status'])) ?></span>
+        <?php if (canWrite() && $s['status'] === 'Pending'): ?>
+          <form method="post" class="d-inline-flex gap-1">
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="slip_review">
+            <input type="hidden" name="slip_id" value="<?= (int)$s['id'] ?>">
+            <input type="hidden" name="agreement_id" value="<?= $id ?>">
+            <button class="btn btn-sm btn-outline-success" name="status" value="Verified" type="submit"><?= e(t('verify')) ?></button>
+            <button class="btn btn-sm btn-outline-danger" name="status" value="Rejected" type="submit"><?= e(t('reject')) ?></button>
+          </form>
+        <?php endif; ?>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+</div>
+<?php endif; ?>
 
 <?php layoutFoot(); ?>

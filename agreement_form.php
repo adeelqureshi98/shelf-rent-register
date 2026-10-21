@@ -23,9 +23,11 @@ $errors = [];
 $old = $ag ?? [
     'supplier_name' => '', 'ledger_code' => '', 'contact_person' => '', 'contact_phone' => '',
     'rent_type' => 'fixed', 'rent_amount' => '', 'percentage_rate' => '',
+    'wht_percent' => '', 'gst_percent' => '', 'shelf_id' => '',
     'billing_frequency' => 'monthly', 'period_from' => '', 'period_to' => '',
     'scan_file' => null, 'notes' => '',
 ];
+$shelves = loadShelves($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     checkCsrf();
@@ -38,6 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $to       = $_POST['period_to'] ?? '';
     $amount   = $_POST['rent_amount'] !== '' ? (float)$_POST['rent_amount'] : null;
     $rate     = $_POST['percentage_rate'] !== '' ? (float)$_POST['percentage_rate'] : null;
+    $wht      = ($_POST['wht_percent'] ?? '') !== '' ? (float)$_POST['wht_percent'] : 0.0;
+    $gst      = ($_POST['gst_percent'] ?? '') !== '' ? (float)$_POST['gst_percent'] : 0.0;
+    $shelfId  = ($_POST['shelf_id'] ?? '') !== '' ? (int)$_POST['shelf_id'] : null;
+    if ($wht < 0 || $wht > 100) $errors[] = 'WHT percent must be between 0 and 100.';
+    if ($gst < 0 || $gst > 100) $errors[] = 'GST percent must be between 0 and 100.';
 
     if ($supplier === '') $errors[] = 'Supplier name is required.';
     if ($ledger === '')   $errors[] = 'Ledger name / code is required.';
@@ -92,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':type' => $type,
             ':amount' => $type === 'fixed' ? $amount : null,
             ':rate' => $type === 'percentage' ? $rate : null,
+            ':wht' => $wht, ':gst' => $gst, ':shelf' => $shelfId,
             ':freq' => $freq, ':from' => $from, ':to' => $to,
             ':scan' => $scanFile,
             ':notes' => trim($_POST['notes'] ?? '') ?: null,
@@ -101,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare(
                 'UPDATE agreements SET supplier_name=:supplier, ledger_code=:ledger, contact_person=:cp,
                         contact_phone=:ph, rent_type=:type, rent_amount=:amount, percentage_rate=:rate,
+                        wht_percent=:wht, gst_percent=:gst, shelf_id=:shelf,
                         billing_frequency=:freq, period_from=:from, period_to=:to, scan_file=:scan, notes=:notes
                   WHERE id=:id'
             )->execute($data);
@@ -110,8 +119,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data[':by'] = currentUser()['id'];
             $pdo->prepare(
                 'INSERT INTO agreements (supplier_name, ledger_code, contact_person, contact_phone, rent_type,
-                        rent_amount, percentage_rate, billing_frequency, period_from, period_to, scan_file, notes, created_by)
-                 VALUES (:supplier, :ledger, :cp, :ph, :type, :amount, :rate, :freq, :from, :to, :scan, :notes, :by)'
+                        rent_amount, percentage_rate, wht_percent, gst_percent, shelf_id,
+                        billing_frequency, period_from, period_to, scan_file, notes, created_by)
+                 VALUES (:supplier, :ledger, :cp, :ph, :type, :amount, :rate, :wht, :gst, :shelf, :freq, :from, :to, :scan, :notes, :by)'
             )->execute($data);
             $id = (int)$pdo->lastInsertId();
             audit($pdo, 'create', 'agreement', $id, 'Added agreement "' . $supplier . '" (' . $ledger . ').');
@@ -178,6 +188,25 @@ pageTitle($id ? t('edit_agreement') : t('add_agreement'), t('agreement_form_subt
         <option value="monthly" <?= $old['billing_frequency'] === 'monthly' ? 'selected' : '' ?>><?= e(t('freq_monthly_desc')) ?></option>
         <option value="quarterly" <?= $old['billing_frequency'] === 'quarterly' ? 'selected' : '' ?>><?= e(t('freq_quarterly_desc')) ?></option>
         <option value="display_drive" <?= $old['billing_frequency'] === 'display_drive' ? 'selected' : '' ?>><?= e(t('freq_display_drive_desc')) ?></option>
+      </select>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label" for="wht_percent"><?= e(t('wht_percent')) ?></label>
+      <input type="number" step="0.01" min="0" max="100" class="form-control" id="wht_percent" name="wht_percent" value="<?= e($old['wht_percent']) ?>" placeholder="0">
+      <div class="form-text"><?= e(t('tax_lines_note')) ?></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="gst_percent"><?= e(t('gst_percent')) ?></label>
+      <input type="number" step="0.01" min="0" max="100" class="form-control" id="gst_percent" name="gst_percent" value="<?= e($old['gst_percent']) ?>" placeholder="0">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="shelf_id"><?= e(t('shelf')) ?></label>
+      <select class="form-select" id="shelf_id" name="shelf_id">
+        <option value="">—</option>
+        <?php foreach ($shelves as $sh): ?>
+          <option value="<?= (int)$sh['id'] ?>" <?= (string)($old['shelf_id'] ?? '') === (string)$sh['id'] ? 'selected' : '' ?>><?= e($sh['label']) ?><?= $sh['zone'] ? ' · ' . e($sh['zone']) : '' ?></option>
+        <?php endforeach; ?>
       </select>
     </div>
 

@@ -21,6 +21,11 @@ syncBills($pdo);
 
 $all = $pdo->query('SELECT * FROM agreements ORDER BY supplier_name')->fetchAll();
 $id = (int)($_GET['id'] ?? ($all[0]['id'] ?? 0));
+$u = currentUser();
+if (($u['role'] ?? '') === 'supplier') {
+    // A supplier login can only ever state its own company.
+    $id = (int)($u['company_id'] ?? 0);
+}
 $ag = null;
 foreach ($all as $a) {
     if ((int)$a['id'] === $id) $ag = $a;
@@ -94,6 +99,17 @@ unset($ev);
 $closing = $balance;
 
 $incentives = loadIncentives($pdo, $id);
+
+/* Tax summary for the statement period (informational — the
+ * statement balances above stay on the bill-amount basis; with
+ * 0% rates this block never renders). */
+$taxGst = 0.0; $taxWht = 0.0;
+foreach ($bills as $b) {
+    if ($b['bill_month'] < $from || $b['bill_month'] > $to) continue;
+    $tx = taxForBill($b);
+    $taxGst += $tx['gst_amount'];
+    $taxWht += $tx['wht_amount'];
+}
 $lang = appLang();
 ?>
 <!DOCTYPE html>
@@ -109,10 +125,11 @@ $lang = appLang();
 </head>
 <body class="receipt-body">
 <div class="receipt-actions no-print" style="max-width:900px">
-  <a class="btn btn-light border" href="company.php?id=<?= $id ?>"><i class="bi bi-arrow-left me-1"></i> <?= e(t('back_to_ledger')) ?></a>
+  <a class="btn btn-light border" href="<?= ($u['role'] ?? '') === 'supplier' ? 'portal.php' : 'company.php?id=' . $id ?>"><i class="bi bi-arrow-left me-1"></i> <?= e(t('back_to_ledger')) ?></a>
   <button class="btn btn-gold" onclick="window.print()"><i class="bi bi-printer me-1"></i> <?= e(t('print_save_pdf')) ?></button>
 </div>
 
+<?php if (($u['role'] ?? '') !== 'supplier'): ?>
 <form method="get" class="no-print mb-3 mx-auto d-flex gap-2 flex-wrap align-items-end" style="max-width:900px">
   <div>
     <label class="form-label"><?= e(t('company')) ?></label>
@@ -132,6 +149,7 @@ $lang = appLang();
   </div>
   <button class="btn btn-gold" type="submit"><?= e(t('generate')) ?></button>
 </form>
+<?php endif; ?>
 
 <div class="receipt" style="max-width:900px">
   <div class="receipt-head">
@@ -175,6 +193,14 @@ $lang = appLang();
       </tr>
     </tbody>
   </table>
+
+  <?php if ($taxGst > 0 || $taxWht > 0): ?>
+    <p class="mt-3 mb-0" style="font-size:14px">
+      <strong><?= e(t('tax_summary')) ?>:</strong>
+      <?= e(t('gst')) ?> <?= money($taxGst) ?> · <?= e(t('wht')) ?> <?= money($taxWht) ?>
+      <span class="cell-sub">(<?= e(t('tax_lines_note')) ?>)</span>
+    </p>
+  <?php endif; ?>
 
   <?php if ($incentives): ?>
     <h3 class="mt-4" style="font-size:18px"><?= e(t('incentives_info_note')) ?></h3>

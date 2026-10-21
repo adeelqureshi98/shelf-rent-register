@@ -18,13 +18,13 @@ requireRole(['admin']);
 $pdo = db();
 
 const BACKUP_MARKER = '-- SHELF-RENT-BACKUP v1';
-const BACKUP_TABLES = ['payments', 'bills', 'incentives', 'reminder_log', 'agreements', 'users']; // children first for restore deletes
+const BACKUP_TABLES = ['payment_slips', 'cheques', 'payments', 'bills', 'incentives', 'reminder_log', 'agreements', 'users', 'shelves', 'settings']; // children first for restore deletes
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'export') {
     checkCsrf();
     audit($pdo, 'export', 'backup', null, 'Downloaded a .sql backup.');
     $out = [BACKUP_MARKER, '-- ' . APP_NAME . ' — exported ' . date('Y-m-d H:i:s'), 'SET FOREIGN_KEY_CHECKS=0;'];
-    foreach (['users', 'agreements', 'bills', 'payments', 'incentives', 'reminder_log'] as $table) {
+    foreach (['users', 'shelves', 'settings', 'agreements', 'bills', 'payments', 'incentives', 'reminder_log', 'cheques', 'payment_slips'] as $table) {
         $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll();
         $out[] = "-- Table: $table (" . count($rows) . ' rows)';
         foreach ($rows as $row) {
@@ -84,8 +84,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resto
 }
 
 $counts = [];
-foreach (['users', 'agreements', 'bills', 'payments', 'incentives', 'reminder_log'] as $t) {
-    $counts[$t] = (int)$pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn();
+foreach (['users', 'shelves', 'settings', 'agreements', 'bills', 'payments', 'incentives', 'reminder_log', 'cheques', 'payment_slips'] as $t) {
+    try {
+        $counts[$t] = (int)$pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn();
+    } catch (Throwable $e) {
+        $counts[$t] = 0; // table arrives with upgrade_v4.sql
+    }
 }
 
 layoutHead(t('backup_restore'), 'backup');

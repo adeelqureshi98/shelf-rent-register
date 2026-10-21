@@ -90,6 +90,14 @@ $finInc  = incomeStatement($pdo, $year);
 $finPos  = financialPosition($pdo);
 $finCash = cashReceived($pdo, $year);
 
+/* --- v4. Tax summary + cheque register summaries --- */
+$taxSum = taxSummary($pdo, $year);
+$chequeSum = ['Pending' => [0, 0.0], 'Cleared' => [0, 0.0], 'Bounced' => [0, 0.0], 'Returned' => [0, 0.0]];
+foreach (loadCheques($pdo) as $c) {
+    $chequeSum[$c['status']][0]++;
+    $chequeSum[$c['status']][1] += (float)$c['amount'];
+}
+
 /* --- g. Expiring agreements (next 90 days, windowed) + h. statement links --- */
 $expiring = $pdo->prepare('SELECT * FROM agreements WHERE period_to BETWEEN :t AND :l ORDER BY period_to ASC');
 $expiring->execute([':t' => $today, ':l' => date('Y-m-d', strtotime('+90 days'))]);
@@ -111,7 +119,7 @@ layoutHead(t('reports'), 'reports');
 </div>
 
 <div class="no-print d-flex flex-wrap gap-2 mb-3">
-  <?php foreach (['r-monthly' => t('monthly_recovery'), 'r-overdue' => t('overdue_by_company'), 'r-company' => t('company_summary'), 'r-aging' => t('aging_chip'), 'r-methods' => t('payment_methods'), 'r-incentives' => t('incentives'), 'r-expiring' => t('expiring_chip'), 'r-income' => t('income_statement'), 'r-position' => t('financial_position'), 'r-cash' => t('cash_received'), 'r-statements' => t('statements_chip')] as $anchor => $label): ?>
+  <?php foreach (['r-monthly' => t('monthly_recovery'), 'r-overdue' => t('overdue_by_company'), 'r-company' => t('company_summary'), 'r-aging' => t('aging_chip'), 'r-methods' => t('payment_methods'), 'r-incentives' => t('incentives'), 'r-expiring' => t('expiring_chip'), 'r-income' => t('income_statement'), 'r-position' => t('financial_position'), 'r-cash' => t('cash_received'), 'r-tax' => t('tax_summary'), 'r-cheques' => t('cheques'), 'r-statements' => t('statements_chip')] as $anchor => $label): ?>
     <a class="btn btn-sm btn-outline-gold" href="#<?= $anchor ?>"><?= $label ?></a>
   <?php endforeach; ?>
 </div>
@@ -360,6 +368,57 @@ layoutHead(t('reports'), 'reports');
       </div>
       <p class="cell-sub mt-2 mb-0"><?= e(t('note_cash_received')) ?></p>
       <p class="mb-0 mt-2 no-print"><a href="financial.php?year=<?= $year ?>"><?= e(t('open_financial_hub')) ?></a></p>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-xl-6">
+    <div class="panel h-100" id="r-tax">
+      <div class="panel-head">
+        <h2><i class="bi bi-percent me-2"></i><?= e(t('tax_summary')) ?> — <?= $year ?></h2>
+        <?php csvBtn('tax', ['year' => $year]); ?>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-luxe align-middle mb-0">
+          <thead><tr><th><?= e(t('company')) ?></th><th class="text-end"><?= e(t('bills')) ?></th><th class="text-end"><?= e(t('gst_charged')) ?></th><th class="text-end"><?= e(t('wht_deducted')) ?></th><th class="text-end"><?= e(t('net_payable')) ?></th></tr></thead>
+          <tbody>
+          <?php if (!$taxSum['per_company']): ?>
+            <tr><td colspan="5" class="text-center py-3 text-muted"><?= e(t('note_tax_summary')) ?></td></tr>
+          <?php endif; ?>
+          <?php foreach ($taxSum['per_company'] as $row): ?>
+            <tr><td><?= e($row['supplier_name']) ?><div class="cell-sub"><?= e($row['ledger_code']) ?></div></td>
+                <td class="text-end"><?= $row['bills'] ?></td>
+                <td class="text-end"><?= money($row['gst']) ?></td>
+                <td class="text-end"><?= money($row['wht']) ?></td>
+                <td class="text-end"><?= money($row['net']) ?></td></tr>
+          <?php endforeach; ?>
+          </tbody>
+          <?php if ($taxSum['per_company']): ?>
+          <tfoot><tr><th><?= e(t('total')) ?> <?= $year ?></th><th class="text-end"><?= $taxSum['total']['bills'] ?></th><th class="text-end"><?= money($taxSum['total']['gst']) ?></th><th class="text-end"><?= money($taxSum['total']['wht']) ?></th><th class="text-end"><?= money($taxSum['total']['net']) ?></th></tr></tfoot>
+          <?php endif; ?>
+        </table>
+      </div>
+      <p class="cell-sub mt-2 mb-0"><?= e(t('note_tax_summary')) ?></p>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="panel h-100" id="r-cheques">
+      <div class="panel-head">
+        <h2><i class="bi bi-wallet2 me-2"></i><?= e(t('cheques')) ?></h2>
+        <?php csvBtn('cheques'); ?>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-luxe align-middle mb-0">
+          <thead><tr><th><?= e(t('status')) ?></th><th class="text-end"><?= e(t('cheques_count')) ?></th><th class="text-end"><?= e(t('amount')) ?></th></tr></thead>
+          <tbody>
+          <?php foreach ($chequeSum as $s => [$n, $amt]): ?>
+            <tr><td><?= e(chequeStatusLabel($s)) ?></td><td class="text-end"><?= $n ?></td><td class="text-end"><?= money($amt) ?></td></tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <p class="cell-sub mt-2 mb-0"><a href="cheques.php"><?= e(t('open_cheque_register')) ?></a></p>
     </div>
   </div>
 </div>

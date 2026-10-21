@@ -20,18 +20,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
         $role = $_POST['role'] ?? 'viewer';
+        $companyId = ($_POST['company_id'] ?? '') !== '' ? (int)$_POST['company_id'] : null;
         if ($name === '' || $user === '' || strlen($pass) < 6) {
             flash('error', 'Name and username are required, and the password must be at least 6 characters.');
-        } elseif (!in_array($role, ['admin', 'accountant', 'viewer'], true)) {
+        } elseif (!in_array($role, ['admin', 'accountant', 'viewer', 'supplier'], true)) {
             flash('error', 'Please choose a valid role.');
+        } elseif ($role === 'supplier' && !$companyId) {
+            flash('error', 'A supplier login must be linked to a company (agreement).');
         } else {
             $dup = $pdo->prepare('SELECT COUNT(*) FROM users WHERE username = :u');
             $dup->execute([':u' => $user]);
             if ($dup->fetchColumn() > 0) {
                 flash('error', 'That username is already taken.');
             } else {
-                $pdo->prepare('INSERT INTO users (name, username, password_hash, role) VALUES (:n, :u, :p, :r)')
-                    ->execute([':n' => $name, ':u' => $user, ':p' => password_hash($pass, PASSWORD_DEFAULT), ':r' => $role]);
+                $pdo->prepare('INSERT INTO users (name, username, password_hash, role, company_id) VALUES (:n, :u, :p, :r, :c)')
+                    ->execute([':n' => $name, ':u' => $user, ':p' => password_hash($pass, PASSWORD_DEFAULT), ':r' => $role, ':c' => $role === 'supplier' ? $companyId : null]);
                 audit($pdo, 'create', 'user', (int)$pdo->lastInsertId(), "Created user '$user' with role $role.");
                 flash('success', "User '$user' created with role $role.");
             }
@@ -42,13 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id   = (int)($_POST['id'] ?? 0);
         $role = $_POST['role'] ?? 'viewer';
         $active = isset($_POST['is_active']) ? 1 : 0;
-        if (!in_array($role, ['admin', 'accountant', 'viewer'], true)) {
+        $companyId = ($_POST['company_id'] ?? '') !== '' ? (int)$_POST['company_id'] : null;
+        if (!in_array($role, ['admin', 'accountant', 'viewer', 'supplier'], true)) {
             flash('error', 'Please choose a valid role.');
+        } elseif ($role === 'supplier' && !$companyId) {
+            flash('error', 'A supplier login must be linked to a company (agreement).');
         } elseif ($id === (int)$me['id'] && ($role !== 'admin' || $active === 0)) {
             flash('error', 'You cannot demote or deactivate your own account.');
         } else {
-            $pdo->prepare('UPDATE users SET role = :r, is_active = :a WHERE id = :id')
-                ->execute([':r' => $role, ':a' => $active, ':id' => $id]);
+            $pdo->prepare('UPDATE users SET role = :r, is_active = :a, company_id = :c WHERE id = :id')
+                ->execute([':r' => $role, ':a' => $active, ':c' => $role === 'supplier' ? $companyId : null, ':id' => $id]);
             audit($pdo, 'update', 'user', $id, 'Set role to ' . $role . ', active = ' . ($active ? 'yes' : 'no') . '.');
             flash('success', 'User updated.');
         }
@@ -88,7 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$users = $pdo->query('SELECT * FROM users ORDER BY role, name')->fetchAll();
+$users = $pdo->query('SELECT u.*, a.supplier_name AS company_name FROM users u LEFT JOIN agreements a ON a.id = u.company_id ORDER BY u.role, u.name')->fetchAll();
+$allAgreements = $pdo->query('SELECT id, supplier_name, ledger_code FROM agreements ORDER BY supplier_name')->fetchAll();
 
 layoutHead(t('users'), 'users');
 pageTitle(t('users'), t('users_subtitle'));
@@ -105,7 +112,7 @@ pageTitle(t('users'), t('users_subtitle'));
             <tr>
               <td class="text-nowrap fw-semibold"><?= e($u['name']) ?><?= (int)$u['id'] === (int)$me['id'] ? ' <span class="cell-sub">' . e(t('you_suffix')) . '</span>' : '' ?></td>
               <td><?= e($u['username']) ?></td>
-              <td><span class="pill pill-role-<?= e($u['role']) ?>"><?= e(t('role_' . $u['role'])) ?></span></td>
+              <td><span class="pill pill-role-<?= e($u['role']) ?>"><?= e(t('role_' . $u['role'])) ?></span><?php if ($u['role'] === 'supplier' && !empty($u['company_name'])): ?><div class="cell-sub"><?= e($u['company_name']) ?></div><?php endif; ?></td>
               <td><?= $u['is_active'] ? '<span class="text-success">' . e(t('active')) . '</span>' : '<span class="text-muted">' . e(t('inactive')) . '</span>' ?></td>
               <td class="text-end allow-wrap">
                 <form method="post" class="d-inline-flex gap-1 align-items-center justify-content-end flex-wrap">
@@ -113,8 +120,14 @@ pageTitle(t('users'), t('users_subtitle'));
                   <input type="hidden" name="action" value="update">
                   <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
                   <select class="form-select form-select-sm w-auto" name="role">
-                    <?php foreach (['admin', 'accountant', 'viewer'] as $r): ?>
+                    <?php foreach (['admin', 'accountant', 'viewer', 'supplier'] as $r): ?>
                       <option value="<?= $r ?>" <?= $u['role'] === $r ? 'selected' : '' ?>><?= e(t('role_' . $r)) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                  <select class="form-select form-select-sm w-auto" name="company_id" title="<?= e(t('linked_company')) ?>">
+                    <option value="">—</option>
+                    <?php foreach ($allAgreements as $ag): ?>
+                      <option value="<?= (int)$ag['id'] ?>" <?= (int)($u['company_id'] ?? 0) === (int)$ag['id'] ? 'selected' : '' ?>><?= e($ag['supplier_name']) ?></option>
                     <?php endforeach; ?>
                   </select>
                   <label class="form-check form-switch m-0">
@@ -169,7 +182,18 @@ pageTitle(t('users'), t('users_subtitle'));
             <option value="viewer"><?= e(t('role_viewer_desc')) ?></option>
             <option value="accountant"><?= e(t('role_accountant_desc')) ?></option>
             <option value="admin"><?= e(t('role_admin_desc')) ?></option>
+            <option value="supplier"><?= e(t('role_supplier_desc')) ?></option>
           </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label"><?= e(t('linked_company')) ?></label>
+          <select class="form-select" name="company_id">
+            <option value="">—</option>
+            <?php foreach ($allAgreements as $ag): ?>
+              <option value="<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?> (<?= e($ag['ledger_code']) ?>)</option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-text"><?= e(t('supplier_link_note')) ?></div>
         </div>
         <div class="col-12"><button class="btn btn-gold w-100" type="submit"><?= e(t('create_user')) ?></button></div>
       </form>

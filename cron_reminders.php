@@ -11,9 +11,14 @@
  * reminder_log (sent_by = NULL marks it as automatic). Items for
  * suppliers without an email address are printed as SKIP lines.
  *
- * WhatsApp is intentionally NOT automated here: background
- * WhatsApp sending requires the WhatsApp Business API. The
- * Reminders page provides one-click WhatsApp instead.
+ * WhatsApp: one-click wa.me links live on the Reminders page.
+ * The WhatsApp Cloud API plumbing also exists (billing.php
+ * whatsappApiSend(), configured on the Settings page); this
+ * cron deliberately stays email-only until the mart connects
+ * its own WhatsApp Business API account and fills the token,
+ * phone-number ID and approved template name in Settings —
+ * at that point whatsappApiSend() can be called from here in
+ * the same loop, using each agreement's contact_phone.
  */
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);

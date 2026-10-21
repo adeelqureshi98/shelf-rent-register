@@ -76,8 +76,12 @@ function takeFlashes(): array
     return $f;
 }
 
-/* ---------------- CSRF ---------------- */
-function csrfToken(): string
+/* ---------------- CSRF ----------------
+ * Every POST form in the app carries csrf_field(); every POST
+ * handler calls csrf_check() before touching the database.
+ * A missing/invalid token is rejected with HTTP 403 and a
+ * friendly message — never a silent failure. */
+function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
@@ -85,19 +89,24 @@ function csrfToken(): string
     return $_SESSION['csrf'];
 }
 
-function csrfField(): string
+function csrf_field(): string
 {
-    return '<input type="hidden" name="csrf" value="' . htmlspecialchars(csrfToken()) . '">';
+    return '<input type="hidden" name="csrf" value="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
 }
 
-function checkCsrf(): void
+function csrf_check(): void
 {
     $sent = $_POST['csrf'] ?? '';
-    if (!hash_equals($_SESSION['csrf'] ?? '', $sent)) {
-        http_response_code(400);
-        exit('Invalid form token. Please go back and try again.');
+    if (!is_string($sent) || !hash_equals($_SESSION['csrf'] ?? '', $sent)) {
+        http_response_code(403);
+        exit('Your form session has expired or the security token is missing. Please go back, refresh the page and try again.');
     }
 }
+
+/* Backwards-compatible aliases (the codebase grew up camelCase). */
+function csrfToken(): string { return csrf_token(); }
+function csrfField(): string { return csrf_field(); }
+function checkCsrf(): void { csrf_check(); }
 
 /* ---------------- audit trail ---------------- */
 /**

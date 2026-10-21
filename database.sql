@@ -8,6 +8,7 @@
 CREATE DATABASE IF NOT EXISTS shelf_rent_register
   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE shelf_rent_register;
+SET NAMES utf8mb4;
 
 -- ------------------------------------------------------------
 -- Users: login accounts. role is enforced by the PHP backend.
@@ -17,9 +18,23 @@ CREATE TABLE IF NOT EXISTS users (
   name          VARCHAR(100) NOT NULL,
   username      VARCHAR(60)  NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,           -- password_hash(), never plain text
-  role          ENUM('admin','accountant','viewer') NOT NULL DEFAULT 'viewer',
+  role          ENUM('admin','accountant','viewer','supplier') NOT NULL DEFAULT 'viewer',
+  company_id    INT UNSIGNED NULL,               -- supplier role only: the ONE agreement this login may see
   is_active     TINYINT(1)   NOT NULL DEFAULT 1,
-  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_users_company (company_id)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Shelves: the physical shelf / bay / end-cap units of the
+-- store, for the visual Shelf Map. An agreement may occupy one.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shelves (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  label      VARCHAR(120) NOT NULL,              -- e.g. "Aisle 1 · Endcap 2"
+  zone       VARCHAR(120) NULL,                  -- e.g. "Ground Floor — Dairy"
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
@@ -37,6 +52,9 @@ CREATE TABLE IF NOT EXISTS agreements (
   rent_type         ENUM('fixed','percentage') NOT NULL DEFAULT 'fixed',
   rent_amount       DECIMAL(12,2) NULL,          -- fixed agreements only
   percentage_rate   DECIMAL(5,2)  NULL,          -- percentage agreements only
+  wht_percent       DECIMAL(5,2)  NOT NULL DEFAULT 0,  -- withholding tax % on bills (v4 tax engine)
+  gst_percent       DECIMAL(5,2)  NOT NULL DEFAULT 0,  -- GST % added on bills (v4 tax engine)
+  shelf_id          INT UNSIGNED NULL,           -- the physical shelf this agreement occupies (Shelf Map)
   billing_frequency ENUM('monthly','quarterly','display_drive') NOT NULL DEFAULT 'monthly',
   period_from       DATE NOT NULL,
   period_to         DATE NOT NULL,
@@ -46,8 +64,14 @@ CREATE TABLE IF NOT EXISTS agreements (
   created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_agreements_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_agreements_shelf FOREIGN KEY (shelf_id) REFERENCES shelves(id) ON DELETE SET NULL,
   CHECK (period_to >= period_from)
 ) ENGINE=InnoDB;
+
+-- Supplier logins point at exactly one agreement (added after
+-- agreements exists, because users is created first).
+ALTER TABLE users
+  ADD CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES agreements(id) ON DELETE SET NULL;
 
 -- ------------------------------------------------------------
 -- Bills: one row per billed month per agreement, materialised
@@ -247,6 +271,70 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ) ENGINE=InnoDB;
 
 -- ============================================================
+-- v4 tables: settings, cheques (PDC register), payment slips
+-- (shelves + the users.company_id / agreements tax & shelf
+-- columns live with their own tables above.)
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- Settings: small key/value store managed from the Settings
+-- page (Admin). Mart tax identity for formal invoices, plus
+-- the WhatsApp Cloud API plumbing — empty until an Admin
+-- connects the mart's own WhatsApp Business API account.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS settings (
+  skey   VARCHAR(60) PRIMARY KEY,
+  svalue VARCHAR(500) NOT NULL DEFAULT ''
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Cheques: the post-dated cheque (PDC) register. A cheque may
+-- optionally be linked to the payment it (part-)settles.
+-- Status changes are written to the audit log by the app.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cheques (
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  agreement_id INT UNSIGNED NOT NULL,
+  payment_id   INT UNSIGNED NULL,               -- optional link to a payments row
+  cheque_no    VARCHAR(60)  NOT NULL,
+  bank         VARCHAR(120) NULL,
+  cheque_date  DATE NOT NULL,                   -- the date written on the cheque
+  amount       DECIMAL(12,2) NOT NULL,
+  status       ENUM('Pending','Cleared','Bounced','Returned') NOT NULL DEFAULT 'Pending',
+  cleared_date DATE NULL,
+  notes        VARCHAR(255) NULL,
+  created_by   INT UNSIGNED NULL,
+  created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_cheques_agreement FOREIGN KEY (agreement_id) REFERENCES agreements(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cheques_payment FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL,
+  CONSTRAINT fk_cheques_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CHECK (amount > 0)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Payment slips: proof-of-payment files uploaded by supplier
+-- logins through the Supplier Portal. Staff review them
+-- (Pending → Verified / Rejected) from the company ledger.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS payment_slips (
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  agreement_id   INT UNSIGNED NOT NULL,
+  uploaded_by    INT UNSIGNED NOT NULL,          -- the supplier user
+  file_name      VARCHAR(255) NOT NULL,          -- inside uploads/slips/
+  amount_claimed DECIMAL(12,2) NULL,
+  slip_date      DATE NULL,
+  note           VARCHAR(255) NULL,
+  status         ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending',
+  reviewed_by    INT UNSIGNED NULL,
+  reviewed_at    TIMESTAMP NULL,
+  created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_slips_agreement FOREIGN KEY (agreement_id) REFERENCES agreements(id) ON DELETE CASCADE,
+  CONSTRAINT fk_slips_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_slips_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ============================================================
 -- Sample incentives — one per supplier, covering every status:
 -- Received, Overdue, Pending, Awaited, Partial.
 -- Hand-checkable totals: known expected 455,000 · received
@@ -259,3 +347,35 @@ INSERT INTO incentives
   (3, 3, 'New Launch Incentive',        'Launch',    'Fixed',      NULL, 200000.00,      0.00, '2026-11-30', NULL,       'New product launch gondola incentive.', 1),
   (4, 4, 'Festive Promotion Incentive', 'Promotion', 'Percentage', 10.00,      NULL,      0.00, '2026-12-10', NULL,       '10% of festive-season promotion sales; actual amount awaited.', 1),
   (5, 5, 'Shelf Promotion Incentive',   'Promotion', 'Fixed',      NULL,  60000.00,  40000.00, '2026-10-10', NULL,       'Part received; balance promised by month end.', 1);
+
+-- ============================================================
+-- v4 seeds: settings keys (empty until an Admin fills them),
+-- shelves for the Shelf Map (built from the sample agreements'
+-- own location notes, plus vacant units so the map reads like
+-- a real store), shelf assignments, and ONE supplier login.
+-- ============================================================
+INSERT INTO settings (skey, svalue) VALUES
+  ('mart_ntn', ''), ('mart_strn', ''), ('mart_address', ''), ('mart_phone', ''),
+  ('wa_api_token', ''), ('wa_phone_number_id', ''), ('wa_template', '')
+ON DUPLICATE KEY UPDATE skey = skey;
+
+INSERT INTO shelves (id, label, zone, sort_order) VALUES
+  (1, 'Dairy Aisle · Chiller End-Cap', 'Ground Floor — Dairy', 10),
+  (2, 'Entrance · Beverage Bay',      'Entrance',             20),
+  (3, 'Front Gondola · Display Drive','Front of Store',       30),
+  (4, 'Organic Corner',               'Ground Floor — Fresh', 40),
+  (5, 'Household Aisle · Shelves 1–3','Ground Floor — Household', 50),
+  (6, 'Aisle 2 · Shelf 1',            'Ground Floor',         60),
+  (7, 'Aisle 2 · Shelf 2',            'Ground Floor',         70),
+  (8, 'Window Display · Left',        'Front of Store',       80),
+  (9, 'Checkout End-Cap',             'Checkout',             90);
+
+UPDATE agreements SET shelf_id = 1 WHERE id = 1;
+UPDATE agreements SET shelf_id = 2 WHERE id = 2;
+UPDATE agreements SET shelf_id = 3 WHERE id = 3;
+UPDATE agreements SET shelf_id = 4 WHERE id = 4;
+UPDATE agreements SET shelf_id = 5 WHERE id = 5;
+
+-- Supplier portal login (password: supp123) — sees Fresh Dairy only.
+INSERT INTO users (id, name, username, password_hash, role, company_id) VALUES
+  (4, 'Fresh Dairy Foods (Supplier)', 'supplier', '$2y$12$5YbZQ8WkchzI5faQw5IP/eAsTecGTaNlHjO1Njg3WLwPnzrgZnt.e', 'supplier', 1);

@@ -191,5 +191,26 @@ if ($type === 'cash') {
     csvOut('cash-received-' . $year . '.csv', ['Month', 'Payments', 'Cash in'], $rows);
 }
 
+if ($type === 'tax') {
+    $year = max(2020, min(2100, (int)($_GET['year'] ?? date('Y'))));
+    $sum = taxSummary($pdo, $year);
+    $f = fn($v) => number_format((float)$v, 2, '.', '');
+    $rows = [];
+    foreach ($sum['per_company'] as $row) {
+        $rows[] = [$row['supplier_name'], $row['ledger_code'], $row['bills'], $f($row['amount']), $f($row['gst']), $f($row['wht']), $f($row['net'])];
+    }
+    $rows[] = ['Total ' . $year, '', $sum['total']['bills'], $f($sum['total']['amount']), $f($sum['total']['gst']), $f($sum['total']['wht']), $f($sum['total']['net'])];
+    csvOut('tax-summary-' . $year . '.csv', ['Company', 'Ledger code', 'Bills', 'Bill amount', 'GST charged', 'WHT deducted', 'Net payable'], $rows);
+}
+
+if ($type === 'cheques') {
+    $rows = [];
+    foreach (loadCheques($pdo) as $c) {
+        $rows[] = [$c['supplier_name'], $c['ledger_code'], $c['cheque_no'], $c['bank'] ?? '', $c['cheque_date'],
+                   number_format((float)$c['amount'], 2, '.', ''), $c['status'], $c['cleared_date'] ?? '', $c['payment_id'] ?? '', $c['notes'] ?? ''];
+    }
+    csvOut('cheque-register.csv', ['Company', 'Ledger code', 'Cheque no', 'Bank', 'Cheque date', 'Amount', 'Status', 'Cleared date', 'Linked payment ID', 'Notes'], $rows);
+}
+
 http_response_code(400);
 exit('Unknown report type.');

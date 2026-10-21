@@ -41,6 +41,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
     exit;
 }
 
+/* ---- Send one reminder through the WhatsApp Cloud API ----
+ * Only possible when an Admin has configured the API on the
+ * Settings page; otherwise this action explains itself and the
+ * one-click wa.me button remains the WhatsApp path. */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'wa_api_send') {
+    requireRole(['admin', 'accountant']);
+    checkCsrf();
+    $agId   = (int)($_POST['agreement_id'] ?? 0);
+    $phone  = preg_replace('/\D+/', '', $_POST['phone'] ?? '');
+    if (str_starts_with($phone, '0')) $phone = '92' . substr($phone, 1);
+    if (str_starts_with($phone, '3')) $phone = '92' . $phone;
+    $label  = trim($_POST['item_label'] ?? '');
+    $amount = ($_POST['amount'] ?? '') !== '' ? (float)$_POST['amount'] : null;
+    $agSt = $pdo->prepare('SELECT supplier_name, contact_person FROM agreements WHERE id = :id');
+    $agSt->execute([':id' => $agId]);
+    $agRow = $agSt->fetch();
+    if (!$agRow || $phone === '' || $label === '') {
+        flash('error', 'That reminder could not be sent.');
+    } else {
+        [$ok, $msg] = whatsappApiSend($pdo, $phone, [
+            $agRow['contact_person'] ?: $agRow['supplier_name'],
+            $label,
+            $amount !== null ? money($amount) : '',
+            trim($_POST['due_date'] ?? ''),
+        ]);
+        if ($ok) {
+            $pdo->prepare('INSERT INTO reminder_log (agreement_id, channel, item_label, amount, sent_by) VALUES (:a, \'WhatsApp\', :l, :amt, :u)')
+                ->execute([':a' => $agId, ':l' => $label, ':amt' => $amount, ':u' => currentUser()['id']]);
+            audit($pdo, 'reminder_sent', 'reminder', null, 'WhatsApp Cloud API reminder sent: "' . $label . '".');
+        }
+        flash($ok ? 'success' : 'error', $msg);
+    }
+    header('Location: reminders.php');
+    exit;
+}
+
 /* ---- Contact details per agreement (loadBills does not carry them) ---- */
 $contacts = [];
 foreach ($pdo->query('SELECT id, contact_person, contact_phone, contact_email FROM agreements')->fetchAll() as $c) {
@@ -111,14 +147,21 @@ function reminderText(array $it): string
         . 'is outstanding at our end. We would be grateful if it could be settled at the earliest. Thank you.';
 }
 
-$history = $pdo->query(
+$histTotal = (int)$pdo->query('SELECT COUNT(*) FROM reminder_log')->fetchColumn();
+[$hPage, $hPages, $hOffset] = paginate($histTotal, 20);
+$histSt = $pdo->prepare(
     'SELECT rl.*, a.supplier_name, u.name AS by_name
        FROM reminder_log rl
        JOIN agreements a ON a.id = rl.agreement_id
        LEFT JOIN users u ON u.id = rl.sent_by
       ORDER BY rl.sent_at DESC, rl.id DESC
-      LIMIT 20'
-)->fetchAll();
+      LIMIT :lim OFFSET :off'
+);
+$histSt->bindValue(':lim', 20, PDO::PARAM_INT);
+$histSt->bindValue(':off', $hOffset, PDO::PARAM_INT);
+$histSt->execute();
+$history = $histSt->fetchAll();
+$waApiReady = whatsappApiConfigured($pdo);
 
 $sections = [
     'overdue' => [t('overdue'), 'bi-exclamation-octagon text-danger', 'pill-overdue'],
@@ -168,6 +211,18 @@ pageTitle(t('reminders'), t('reminders_subtitle'));
               <a class="btn btn-sm btn-light border text-nowrap" href="mailto:<?= e($it['contact_email']) ?>?subject=<?= urlencode('Payment reminder — ' . MART_NAME) ?>&body=<?= urlencode($text) ?>"><i class="bi bi-envelope"></i> <?= e(t('email')) ?></a>
             <?php endif; ?>
             </div>
+            <?php if ($write && $waApiReady && $wa): ?>
+              <form method="post" class="d-flex gap-1 align-items-center justify-content-end mb-1">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="wa_api_send">
+                <input type="hidden" name="agreement_id" value="<?= (int)$it['agreement_id'] ?>">
+                <input type="hidden" name="phone" value="<?= e($it['contact_phone'] ?? '') ?>">
+                <input type="hidden" name="item_label" value="<?= e($it['item']) ?>">
+                <input type="hidden" name="amount" value="<?= e($it['amount']) ?>">
+                <input type="hidden" name="due_date" value="<?= e(date('d M Y', strtotime($it['date']))) ?>">
+                <button class="btn btn-sm btn-outline-success text-nowrap" type="submit"><i class="bi bi-whatsapp"></i> <?= e(t('send_via_api')) ?></button>
+              </form>
+            <?php endif; ?>
             <?php if ($write): ?>
               <form method="post" class="d-flex gap-1 align-items-center justify-content-end">
                 <?= csrfField() ?>
@@ -213,8 +268,12 @@ pageTitle(t('reminders'), t('reminders_subtitle'));
       </table>
     </div>
   <?php endif; ?>
+  <?php pageNav($hPage, $hPages, 'reminders.php'); ?>
   <p class="cell-sub mt-3 mb-0">
     <?= e(t('auto_note_1')) ?><code>php cron_reminders.php</code><?= e(t('auto_note_2')) ?>
+  </p>
+  <p class="cell-sub mt-1 mb-0">
+    <i class="bi bi-whatsapp"></i> <?= e($waApiReady ? t('wa_api_configured') : t('wa_api_not_configured')) ?>
   </p>
 </div>
 

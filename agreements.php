@@ -53,10 +53,18 @@ if ($expiry === 'soon') {
 } elseif ($expiry === 'active') {
     $sql .= ' AND period_to >= CURDATE()';
 }
-$sql .= ' ORDER BY supplier_name';
+$countSt = $pdo->prepare(str_replace('SELECT *', 'SELECT COUNT(*)', $sql));
+$countSt->execute($args);
+$totalRows = (int)$countSt->fetchColumn();
+[$page, $pages, $offset] = paginate($totalRows, 20);
+$sql .= ' ORDER BY supplier_name LIMIT :lim OFFSET :off';
 $st = $pdo->prepare($sql);
-$st->execute($args);
+foreach ($args as $k => $v) $st->bindValue($k, $v);
+$st->bindValue(':lim', 20, PDO::PARAM_INT);
+$st->bindValue(':off', $offset, PDO::PARAM_INT);
+$st->execute();
 $rows = $st->fetchAll();
+$shelfMap = shelfByAgreement($pdo);
 
 $today = date('Y-m-d');
 $limit = date('Y-m-d', strtotime('+' . EXPIRY_WARN_DAYS . ' days'));
@@ -69,7 +77,7 @@ pageTitle(t('agreements'), t('agreements_subtitle'));
   <form class="filter-bar m-0 flex-grow-1" method="get">
     <div class="input-group filter-search">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search_company_placeholder')) ?>">
+      <input class="form-control" name="q" value="<?= e($q) ?>" placeholder="<?= e(t('search_company_placeholder')) ?>" data-livesearch-input="#agreementsBody">
     </div>
     <select class="form-select filter-status" name="type">
       <option value=""><?= e(t('all_types')) ?></option>
@@ -104,19 +112,20 @@ pageTitle(t('agreements'), t('agreements_subtitle'));
           <th><?= e(t('period')) ?></th><th><?= e(t('state')) ?></th><th><?= e(t('scan')) ?></th><th class="text-end"><?= e(t('actions')) ?></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="agreementsBody">
       <?php if (!$rows): ?>
         <tr><td colspan="8" class="text-center py-4 text-muted"><?= e(t('no_agreements_match')) ?></td></tr>
       <?php endif; ?>
+        <tr data-search-empty style="display:none"><td colspan="8" class="text-center py-4 text-muted"><?= e(t('no_agreements_match')) ?></td></tr>
       <?php foreach ($rows as $ag):
         if ($ag['period_to'] < $today)      $state = [t('expired'), 'pill-out'];
         elseif ($ag['period_to'] <= $limit) $state = [t('expiring_soon'), 'pill-overdue'];
         else                                $state = [t('active'), 'pill-received'];
       ?>
-        <tr>
+        <tr data-search="<?= e(strtolower($ag['supplier_name'] . ' ' . $ag['ledger_code'] . ' ' . ($ag['contact_person'] ?? ''))) ?>">
           <td>
             <a href="company.php?id=<?= (int)$ag['id'] ?>"><?= e($ag['supplier_name']) ?></a>
-            <div class="cell-sub"><?= e($ag['ledger_code']) ?><?= $ag['contact_person'] ? ' · ' . e($ag['contact_person']) : '' ?></div>
+            <div class="cell-sub"><?= e($ag['ledger_code']) ?><?= $ag['contact_person'] ? ' · ' . e($ag['contact_person']) : '' ?><?= isset($shelfMap[(int)$ag['id']]) ? ' · <i class="bi bi-grid-3x3-gap"></i> ' . e($shelfMap[(int)$ag['id']]['label']) : '' ?></div>
           </td>
           <td><?= $ag['rent_type'] === 'fixed' ? e(t('fixed')) : e(t('percentage')) ?></td>
           <td class="text-nowrap"><?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '% ' . e(t('of_sales')) ?></td>
@@ -148,5 +157,6 @@ pageTitle(t('agreements'), t('agreements_subtitle'));
     </table>
   </div>
 </div>
+<?php pageNav($page, $pages, 'agreements.php'); ?>
 
 <?php layoutFoot(); ?>
