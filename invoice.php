@@ -70,7 +70,7 @@ $theme = ($_COOKIE['srr_theme'] ?? 'light') === 'dark' ? 'dark' : 'light';
 <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
 <link href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
-<link href="assets/css/app.css" rel="stylesheet">
+<link href="assets/css/app.css?v=4" rel="stylesheet">
 </head>
 <body class="receipt-body">
 <div class="receipt-actions no-print">
