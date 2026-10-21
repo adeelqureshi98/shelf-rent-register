@@ -121,7 +121,7 @@ pageTitle(t('incentives'), t('incentives_subtitle'));
           <td class="text-end"><?= $inc['expected_amount'] === null ? '<span class="text-muted">' . e(t('awaited')) . '</span>' : money($inc['expected_amount']) ?></td>
           <td class="text-end"><?= money($inc['received_amount']) ?></td>
           <td class="text-end"><?= $inc['balance'] === null ? '—' : money($inc['balance']) ?></td>
-          <td><?= date('d M Y', strtotime($inc['expected_date'])) ?></td>
+          <td class="text-nowrap"><?= date('d M Y', strtotime($inc['expected_date'])) ?></td>
           <td><span class="pill pill-<?= $inc['status'] ?>"><?= statusLabel($inc['status']) ?></span></td>
           <td class="text-end text-nowrap">
             <?php if (canWrite()): ?>

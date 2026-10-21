@@ -144,8 +144,8 @@ $lang = appLang();
   <table class="receipt-table">
     <tr><th><?= e(t('supplier')) ?></th><td><?= e($ag['supplier_name']) ?> (<?= e($ag['ledger_code']) ?>)</td></tr>
     <tr><th><?= e(t('contact')) ?></th><td><?= e($ag['contact_person'] ?? '—') ?><?= $ag['contact_phone'] ? ' · ' . e($ag['contact_phone']) : '' ?><?= !empty($ag['contact_email']) ? ' · ' . e($ag['contact_email']) : '' ?></td></tr>
-    <tr><th><?= e(t('agreement')) ?></th><td><?= $ag['rent_type'] === 'fixed' ? e(t('fixed_rent')) . ' ' . money($ag['rent_amount']) : e(t('percentage_rent')) . ' @ ' . e($ag['percentage_rate']) . '% ' . e(t('of_sales')) ?> · <?= e(freqLabel($ag['billing_frequency'])) ?> <?= e(t('billing_word')) ?> · <?= date('d M Y', strtotime($ag['period_from'])) ?> → <?= date('d M Y', strtotime($ag['period_to'])) ?></td></tr>
-    <tr><th><?= e(t('statement_period')) ?></th><td><?= date('d F Y', strtotime($from)) ?> → <?= date('d F Y', strtotime($to)) ?></td></tr>
+    <tr><th><?= e(t('agreement')) ?></th><td><?= $ag['rent_type'] === 'fixed' ? e(t('fixed_rent')) . ' ' . money($ag['rent_amount']) : e(t('percentage_rent')) . ' @ ' . e($ag['percentage_rate']) . '% ' . e(t('of_sales')) ?> · <?= e(freqLabel($ag['billing_frequency'])) ?> <?= e(t('billing_word')) ?> · <span dir="ltr"><?= date('d M Y', strtotime($ag['period_from'])) ?> → <?= date('d M Y', strtotime($ag['period_to'])) ?></span></td></tr>
+    <tr><th><?= e(t('statement_period')) ?></th><td><span dir="ltr"><?= date('d F Y', strtotime($from)) ?> → <?= date('d F Y', strtotime($to)) ?></span></td></tr>
     <tr><th><?= e(t('generated')) ?></th><td><?= date('d F Y') ?> · <?= e(t('by_word')) ?> <?= e(currentUser()['name']) ?></td></tr>
   </table>
 
@@ -153,7 +153,7 @@ $lang = appLang();
     <thead><tr><th><?= e(t('date')) ?></th><th><?= e(t('particulars')) ?></th><th class="text-end"><?= e(t('debit')) ?></th><th class="text-end"><?= e(t('credit')) ?></th><th class="text-end"><?= e(t('balance')) ?></th></tr></thead>
     <tbody>
       <tr class="fw-semibold">
-        <td><?= date('d M Y', strtotime($from)) ?></td><td><?= e(t('opening_balance')) ?></td>
+        <td class="text-nowrap"><?= date('d M Y', strtotime($from)) ?></td><td><?= e(t('opening_balance')) ?></td>
         <td class="text-end">—</td><td class="text-end">—</td><td class="text-end"><?= money($opening) ?></td>
       </tr>
       <?php if (!$events): ?>
@@ -161,7 +161,7 @@ $lang = appLang();
       <?php endif; ?>
       <?php foreach ($events as $ev): ?>
         <tr>
-          <td><?= date('d M Y', strtotime($ev['date'])) ?></td>
+          <td class="text-nowrap"><?= date('d M Y', strtotime($ev['date'])) ?></td>
           <td><?= e($ev['label']) ?><?php if ($ev['note']): ?> <span class="cell-sub">(<?= e($ev['note']) ?>)</span><?php endif; ?></td>
           <td class="text-end"><?= $ev['debit'] === null ? '—' : money($ev['debit']) ?></td>
           <td class="text-end"><?= $ev['credit'] === null ? '—' : money($ev['credit']) ?></td>
@@ -184,7 +184,7 @@ $lang = appLang();
       <?php foreach ($incentives as $inc): ?>
         <tr>
           <td><?= e($inc['title']) ?></td>
-          <td><?= date('d M Y', strtotime($inc['expected_date'])) ?></td>
+          <td class="text-nowrap"><?= date('d M Y', strtotime($inc['expected_date'])) ?></td>
           <td class="text-end"><?= $inc['expected_amount'] === null ? e(t('awaited')) : money($inc['expected_amount']) ?></td>
           <td class="text-end"><?= money($inc['received_amount']) ?></td>
           <td class="text-end"><?= $inc['balance'] === null ? '—' : money($inc['balance']) ?></td>

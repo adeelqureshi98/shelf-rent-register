@@ -187,6 +187,18 @@ pageTitle(t('dashboard'), sprintf(t('dash_subtitle'), date('F Y')));
         <div class="col-6"><div class="mini-stat"><span><?= e(t('awaited_amounts')) ?></span><strong><?= $incTot['awaited_count'] ?></strong></div></div>
       </div>
     </div>
+
+    <div class="panel mt-3">
+      <div class="panel-head">
+        <h2><i class="bi bi-bank me-2"></i><?= e(t('financial')) ?></h2>
+        <a class="btn btn-sm btn-outline-gold" href="financial.php"><?= e(t('open_financial_hub')) ?></a>
+      </div>
+      <p class="empty-note"><?= e(t('financial_hub_panel_sub')) ?></p>
+      <div class="row g-2">
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('total_income')) ?> <?= (int)date('Y') ?></span><strong><?= money(incomeStatement($pdo, (int)date('Y'))['total']['received']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('total_receivables')) ?></span><strong><?= money(financialPosition($pdo)['total_outstanding']) ?></strong></div></div>
+      </div>
+    </div>
   </div>
 </div>
 

@@ -103,11 +103,11 @@ pageTitle(t('users'), t('users_subtitle'));
           <tbody>
           <?php foreach ($users as $u): ?>
             <tr>
-              <td><?= e($u['name']) ?><?= (int)$u['id'] === (int)$me['id'] ? ' <span class="cell-sub">' . e(t('you_suffix')) . '</span>' : '' ?></td>
+              <td class="text-nowrap fw-semibold"><?= e($u['name']) ?><?= (int)$u['id'] === (int)$me['id'] ? ' <span class="cell-sub">' . e(t('you_suffix')) . '</span>' : '' ?></td>
               <td><?= e($u['username']) ?></td>
               <td><span class="pill pill-role-<?= e($u['role']) ?>"><?= e(t('role_' . $u['role'])) ?></span></td>
               <td><?= $u['is_active'] ? '<span class="text-success">' . e(t('active')) . '</span>' : '<span class="text-muted">' . e(t('inactive')) . '</span>' ?></td>
-              <td class="text-end">
+              <td class="text-end allow-wrap">
                 <form method="post" class="d-inline-flex gap-1 align-items-center justify-content-end flex-wrap">
                   <?= csrfField() ?>
                   <input type="hidden" name="action" value="update">
@@ -126,7 +126,7 @@ pageTitle(t('users'), t('users_subtitle'));
                   <?= csrfField() ?>
                   <input type="hidden" name="action" value="reset">
                   <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
-                  <input type="password" class="form-control form-control-sm w-auto" name="password" placeholder="<?= e(t('new_password')) ?>">
+                  <input type="password" class="form-control form-control-sm" style="width:150px" name="password" placeholder="<?= e(t('new_password')) ?>">
                   <button class="btn btn-sm btn-light border" type="submit"><?= e(t('reset')) ?></button>
                 </form>
                 <?php if ((int)$u['id'] !== (int)$me['id']): ?>

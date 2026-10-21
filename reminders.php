@@ -136,7 +136,8 @@ pageTitle(t('reminders'), t('reminders_subtitle'));
     <h2><i class="bi <?= $icon ?> me-2"></i><?= e($label) ?> <span class="cell-sub">(<?= count($rows) ?>)</span></h2>
   </div>
   <div class="table-responsive">
-    <table class="table table-luxe align-middle mb-0">
+    <table class="table table-luxe reminders-table align-middle mb-0">
+      <colgroup><col style="width:15%"><col style="width:20%"><col style="width:14%"><col style="width:9%"><col style="width:10%"><col style="width:11%"><col style="width:21%"></colgroup>
       <thead><tr><th><?= e(t('company')) ?></th><th><?= e(t('contact')) ?></th><th><?= e(t('item')) ?></th><th><?= e(t('due_date')) ?></th><th class="text-end"><?= e(t('amount')) ?></th><th><?= e(t('days')) ?></th><th class="text-end no-print"><?= e(t('actions')) ?></th></tr></thead>
       <tbody>
       <?php if (!$rows): ?>
@@ -155,18 +156,20 @@ pageTitle(t('reminders'), t('reminders_subtitle'));
             <?php if ($it['contact_email']): ?><div class="cell-sub"><?= e($it['contact_email']) ?></div><?php endif; ?>
           </td>
           <td><?= e($it['item']) ?></td>
-          <td><?= date('d M Y', strtotime($it['date'])) ?></td>
+          <td class="text-nowrap"><?= date('d M Y', strtotime($it['date'])) ?></td>
           <td class="text-end fw-semibold"><?= money($it['amount']) ?></td>
           <td><span class="pill <?= $pill ?>"><?= $days < 0 ? e(sprintf(t('days_late'), abs($days))) : ($days === 0 ? e(t('due_today')) : e(sprintf(t('days_left_paren'), $days))) ?></span></td>
-          <td class="text-end text-nowrap">
+          <td class="no-print">
+            <div class="d-flex flex-wrap gap-1 justify-content-end mb-1">
             <?php if ($wa): ?>
-              <a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="https://wa.me/<?= e($wa) ?>?text=<?= urlencode($text) ?>"><i class="bi bi-whatsapp"></i> <?= e(t('whatsapp')) ?></a>
+              <a class="btn btn-sm btn-success text-nowrap" target="_blank" rel="noopener" href="https://wa.me/<?= e($wa) ?>?text=<?= urlencode($text) ?>"><i class="bi bi-whatsapp"></i> <?= e(t('whatsapp')) ?></a>
             <?php endif; ?>
             <?php if ($it['contact_email']): ?>
-              <a class="btn btn-sm btn-light border" href="mailto:<?= e($it['contact_email']) ?>?subject=<?= urlencode('Payment reminder — ' . MART_NAME) ?>&body=<?= urlencode($text) ?>"><i class="bi bi-envelope"></i> <?= e(t('email')) ?></a>
+              <a class="btn btn-sm btn-light border text-nowrap" href="mailto:<?= e($it['contact_email']) ?>?subject=<?= urlencode('Payment reminder — ' . MART_NAME) ?>&body=<?= urlencode($text) ?>"><i class="bi bi-envelope"></i> <?= e(t('email')) ?></a>
             <?php endif; ?>
+            </div>
             <?php if ($write): ?>
-              <form method="post" class="d-inline-flex gap-1 align-items-center ms-1">
+              <form method="post" class="d-flex gap-1 align-items-center justify-content-end">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="mark_sent">
                 <input type="hidden" name="agreement_id" value="<?= (int)$it['agreement_id'] ?>">
@@ -175,7 +178,7 @@ pageTitle(t('reminders'), t('reminders_subtitle'));
                 <select class="form-select form-select-sm w-auto" name="channel">
                   <option>WhatsApp</option><option>Email</option>
                 </select>
-                <button class="btn btn-sm btn-gold" type="submit"><?= e(t('mark_sent')) ?></button>
+                <button class="btn btn-sm btn-gold text-nowrap" type="submit"><?= e(t('mark_sent')) ?></button>
               </form>
             <?php endif; ?>
           </td>

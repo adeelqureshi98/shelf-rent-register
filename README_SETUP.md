@@ -46,7 +46,12 @@ Change these passwords after first login on any real deployment
 4. **Enter a percentage amount** — click a Green Valley *Awaited* cell, enter
    the actual billed amount, then record its payment.
 5. **Reports** — monthly recovery for 2026 and the overdue summary.
-6. **Backup** (Admin) — download a `.sql` backup; it can be restored from the
+6. **Financial Hub** — Income Statement (shelf rent + incentive income
+   for a year or month), Financial Position (receivables outstanding,
+   overdue vs not yet due) and Cash Received by payment month, each
+   with a CSV download. It reads the same billing engine as everything
+   else, so its figures always match the dashboard.
+7. **Backup** (Admin) — download a `.sql` backup; it can be restored from the
    same page.
 
 ## Option B — Live shared hosting (cPanel)

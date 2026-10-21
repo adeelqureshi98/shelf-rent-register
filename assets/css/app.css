@@ -265,6 +265,28 @@ html[lang="ur"] .form-label { line-height: 1.9; }
 html[lang="ur"] .page-head p { line-height: 2; }
 html[lang="ur"] .stat-value { line-height: 1.6; padding: 6px 0; }
 
+/* ---------- v3 alignment pass ----------
+ * Found by a full-page screenshot audit (EN + UR) — see ONE_PAGE_NOTE.
+ * 1. Money must never wrap mid-figure ("Rs / 290,000"): right-aligned
+ *    table cells, stat values and grid amounts stay on one line.
+ * 2. Dashboard recent-payment dates stay on one line.
+ * 3. In Urdu (RTL), a table cell's own text direction follows its
+ *    content (unicode-bidi: plaintext), so Latin dates/amounts keep
+ *    their token order ("10 Jul 2026", not "Jul 2026 10").
+ * 4. Reminders tables use a fixed layout with one shared colgroup,
+ *    so the three urgency bands line up column-for-column and the
+ *    action buttons never clip outside the panel. */
+.table-luxe td.text-end, .table-luxe th.text-end { white-space: nowrap; }
+.table-luxe td.allow-wrap { white-space: normal; } /* cells with wrapping inline forms (Users → Manage) */
+.stat-value, .mini-stat strong { white-space: nowrap; }
+.cell-amt, .cell-btn .cell-sub { white-space: nowrap; }
+.activity-list .activity-amt { white-space: nowrap; }
+.activity-list li > .cell-sub { white-space: nowrap; flex-shrink: 0; }
+html[lang="ur"] .table-luxe td, html[lang="ur"] .table-luxe th { unicode-bidi: plaintext; }
+.reminders-table { table-layout: fixed; width: 100%; }
+.reminders-table .cell-sub { overflow-wrap: anywhere; }
+.reminders-table td { overflow-wrap: break-word; }
+
 /* ---------- print: clean paper output ---------- */
 @media print {
   .sidebar, .no-print, .filter-bar, .btn, .alert { display: none !important; }

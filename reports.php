@@ -85,6 +85,11 @@ foreach (loadIncentives($pdo) as $inc) {
     if ($inc['expected_date'] < $today && $inc['balance'] !== null) $incPer[$id]['overdue'] += $inc['balance'];
 }
 
+/* --- v3. Financial Hub summaries (shared functions, same figures as financial.php) --- */
+$finInc  = incomeStatement($pdo, $year);
+$finPos  = financialPosition($pdo);
+$finCash = cashReceived($pdo, $year);
+
 /* --- g. Expiring agreements (next 90 days, windowed) + h. statement links --- */
 $expiring = $pdo->prepare('SELECT * FROM agreements WHERE period_to BETWEEN :t AND :l ORDER BY period_to ASC');
 $expiring->execute([':t' => $today, ':l' => date('Y-m-d', strtotime('+90 days'))]);
@@ -106,7 +111,7 @@ layoutHead(t('reports'), 'reports');
 </div>
 
 <div class="no-print d-flex flex-wrap gap-2 mb-3">
-  <?php foreach (['r-monthly' => t('monthly_recovery'), 'r-overdue' => t('overdue_by_company'), 'r-company' => t('company_summary'), 'r-aging' => t('aging_chip'), 'r-methods' => t('payment_methods'), 'r-incentives' => t('incentives'), 'r-expiring' => t('expiring_chip'), 'r-statements' => t('statements_chip')] as $anchor => $label): ?>
+  <?php foreach (['r-monthly' => t('monthly_recovery'), 'r-overdue' => t('overdue_by_company'), 'r-company' => t('company_summary'), 'r-aging' => t('aging_chip'), 'r-methods' => t('payment_methods'), 'r-incentives' => t('incentives'), 'r-expiring' => t('expiring_chip'), 'r-income' => t('income_statement'), 'r-position' => t('financial_position'), 'r-cash' => t('cash_received'), 'r-statements' => t('statements_chip')] as $anchor => $label): ?>
     <a class="btn btn-sm btn-outline-gold" href="#<?= $anchor ?>"><?= $label ?></a>
   <?php endforeach; ?>
 </div>
@@ -301,6 +306,61 @@ layoutHead(t('reports'), 'reports');
       <?php endforeach; ?>
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="panel mb-3" id="r-income">
+  <div class="panel-head">
+    <h2><i class="bi bi-file-earmark-bar-graph me-2"></i><?= e(t('income_statement')) ?> — <?= $year ?></h2>
+    <div class="d-flex gap-2 align-items-center">
+      <?php csvBtn('income', ['year' => $year]); ?>
+      <a class="btn btn-sm btn-outline-gold no-print" href="financial.php?year=<?= $year ?>"><?= e(t('open_financial_hub')) ?></a>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-luxe align-middle mb-0">
+      <thead><tr><th></th><th class="text-end"><?= e(t('expected')) ?></th><th class="text-end"><?= e(t('received')) ?></th><th class="text-end"><?= e(t('outstanding')) ?></th><th class="text-end"><?= e(t('recovery_pct')) ?></th></tr></thead>
+      <tbody>
+        <tr><td><?= e(t('rent_income')) ?></td><td class="text-end"><?= money($finInc['rent']['expected']) ?></td><td class="text-end"><?= money($finInc['rent']['received']) ?></td><td class="text-end"><?= money($finInc['rent']['outstanding']) ?></td><td class="text-end"><?= $finInc['rent']['recovery_pct'] === null ? '—' : number_format($finInc['rent']['recovery_pct'], 1) . '%' ?></td></tr>
+        <tr><td><?= e(t('incentive_income')) ?></td><td class="text-end"><?= money($finInc['incentive']['expected']) ?></td><td class="text-end"><?= money($finInc['incentive']['received']) ?></td><td class="text-end"><?= money($finInc['incentive']['outstanding']) ?></td><td class="text-end"><?= $finInc['incentive']['recovery_pct'] === null ? '—' : number_format($finInc['incentive']['recovery_pct'], 1) . '%' ?></td></tr>
+      </tbody>
+      <tfoot><tr><th><?= e(t('total_income')) ?></th><th class="text-end"><?= money($finInc['total']['expected']) ?></th><th class="text-end"><?= money($finInc['total']['received']) ?></th><th class="text-end"><?= money($finInc['total']['outstanding']) ?></th><th class="text-end"><?= $finInc['total']['recovery_pct'] === null ? '—' : number_format($finInc['total']['recovery_pct'], 1) . '%' ?></th></tr></tfoot>
+    </table>
+  </div>
+  <p class="cell-sub mt-2 mb-0"><?= e(t('note_income_statement')) ?></p>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-xl-6">
+    <div class="panel h-100" id="r-position">
+      <div class="panel-head">
+        <h2><i class="bi bi-bank me-2"></i><?= e(t('financial_position')) ?></h2>
+        <?php csvBtn('position'); ?>
+      </div>
+      <div class="row g-2">
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('total_receivables')) ?></span><strong><?= money($finPos['total_outstanding']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('received_to_date')) ?></span><strong><?= money($finPos['total_received']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('overdue_portion')) ?></span><strong class="<?= $finPos['overdue'] > 0 ? 'text-danger' : '' ?>"><?= money($finPos['overdue']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('not_yet_due_portion')) ?></span><strong><?= money($finPos['not_yet_due']) ?></strong></div></div>
+      </div>
+      <p class="cell-sub mt-2 mb-0"><?= e(t('note_financial_position')) ?></p>
+      <p class="mb-0 mt-2 no-print"><a href="financial.php"><?= e(t('open_financial_hub')) ?></a></p>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="panel h-100" id="r-cash">
+      <div class="panel-head">
+        <h2><i class="bi bi-cash-coin me-2"></i><?= e(t('cash_received')) ?> — <?= $year ?></h2>
+        <?php csvBtn('cash', ['year' => $year]); ?>
+      </div>
+      <div class="row g-2">
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('total_cash_year')) ?></span><strong><?= money($finCash['total_amount']) ?></strong></div></div>
+        <div class="col-6"><div class="mini-stat"><span><?= e(t('payments_count')) ?></span><strong><?= (int)$finCash['total_count'] ?></strong></div></div>
+        <div class="col-12"><div class="mini-stat"><span><?= e(t('incentive_receipts_total')) ?></span><strong><?= money($finCash['incentive_received_total']) ?></strong></div></div>
+      </div>
+      <p class="cell-sub mt-2 mb-0"><?= e(t('note_cash_received')) ?></p>
+      <p class="mb-0 mt-2 no-print"><a href="financial.php?year=<?= $year ?>"><?= e(t('open_financial_hub')) ?></a></p>
+    </div>
   </div>
 </div>
 

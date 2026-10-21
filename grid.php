@@ -179,7 +179,7 @@ pageTitle(t('payment_grid'), t('grid_subtitle'));
           <div class="col-6 col-md-3"><div class="mini-stat"><span><?= e(t('paid')) ?></span><strong id="bmPaid">—</strong></div></div>
           <div class="col-6 col-md-3"><div class="mini-stat"><span><?= e(t('balance')) ?></span><strong id="bmBalance">—</strong></div></div>
         </div>
-        <p class="cell-sub mb-3"><?= e(t('due_date')) ?>: <strong id="bmDue"></strong></p>
+        <p class="cell-sub mb-3"><?= e(t('due_date')) ?>: <strong id="bmDue" dir="ltr"></strong></p>
 
         <h6 class="modal-section"><?= e(t('payments_on_bill')) ?></h6>
         <div id="bmPayments"></div>

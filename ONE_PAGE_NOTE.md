@@ -116,6 +116,53 @@ grid, dashboard and reports agree.
   summary, incentive report and expiring agreements (30/60/90 days),
   **every one with a CSV download**.
 
+## Added in v3
+
+- **Financial Hub (`financial.php`)** — three views computed by shared
+  functions in `billing.php` (`incomeStatement()`, `financialPosition()`,
+  `cashReceived()`), so the Hub, the new Reports panels and their CSV
+  exports always show identical figures. Definitions:
+  - *Income Statement* for a year (or one month): bills by billed month
+    plus incentives by expected date, known amounts only — Rent Income,
+    Incentive Income, Total Income, each with expected / received /
+    outstanding / recovery %. Awaited items are counted, never money.
+    **Honest limit:** this is shelf rent + incentive income only, not
+    the mart's full trading profit & loss. The register holds no
+    expense data, so nothing is deducted and no "profit" is claimed.
+  - *Financial Position* as of today, on the dashboard's billed-to-date
+    basis: total receivables outstanding (rent + incentive balances),
+    received to date, the overdue portion, the not-yet-due portion and
+    the rent aging buckets. **Honest limit:** a receivables position
+    only — not a full balance sheet, because no other assets,
+    liabilities or capital exist in this register.
+  - *Cash Received* for a year: rent payments grouped by their real
+    `payment_date` month (a cash-in view, deliberately different from
+    the bill-month recovery view). **Honest limit:** incentive
+    receipts are recorded as amounts with no monthly payment-date
+    ledger (`received_date` is only stamped when fully received), so
+    they are shown as one separate total and are never allocated to
+    invented months.
+- **Alignment pass (owner asked: "things don't look right in the
+  screenshots")** — every page was screenshotted in English AND Urdu
+  and inspected. Found & fixed: money wrapping mid-figure
+  ("Rs / 290,000") on the dashboard, incentives, statement and grid
+  (right-aligned cells and stat values are now no-wrap); dashboard
+  recent-payment dates wrapping; the Reminders tables crushing their
+  columns, clipping the action buttons off the panel and disagreeing
+  with each other band-to-band (now one fixed layout + shared
+  colgroup, actions stacked in two tidy rows); agreement period
+  ranges wrapping; user names wrapping on the Users page; and in
+  Urdu, Latin dates inside RTL cells reordering ("Jul 2026 10") —
+  fixed with per-cell content direction plus LTR spans around date
+  ranges. Final screenshots for all 17 pages × 2 languages are in
+  `screenshots/`.
+- **Deliberately NOT added: HR and Payroll.** They belong to a full
+  ERP/accounting suite; a shelf-rent register has no employee,
+  attendance or salary data, and bolting them on would fake a scope
+  the brief never asked for. The same reasoning kept a full balance
+  sheet and trading P&L out — what is shown is exactly what the
+  register's own data can honestly support.
+
 ## With more time I would still add
 
 Per-shelf/per-location rent breakdown, and a read-only API for the

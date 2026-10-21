@@ -16,6 +16,7 @@ function layoutHead(string $title, string $active): void
         'incentives' => ['incentives.php', 'bi-gift-fill',      t('incentives')],
         'reminders'  => ['reminders.php',  'bi-bell-fill',      t('reminders')],
         'reports'    => ['reports.php',    'bi-bar-chart-fill', t('reports')],
+        'financial'  => ['financial.php',  'bi-bank',           t('financial')],
         'followups'  => ['followups.php',  'bi-telephone-fill', t('followups')],
     ];
     if (isAdmin()) {

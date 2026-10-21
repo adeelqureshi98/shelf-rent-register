@@ -119,9 +119,9 @@ pageTitle(t('agreements'), t('agreements_subtitle'));
             <div class="cell-sub"><?= e($ag['ledger_code']) ?><?= $ag['contact_person'] ? ' · ' . e($ag['contact_person']) : '' ?></div>
           </td>
           <td><?= $ag['rent_type'] === 'fixed' ? e(t('fixed')) : e(t('percentage')) ?></td>
-          <td><?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '% ' . e(t('of_sales')) ?></td>
+          <td class="text-nowrap"><?= $ag['rent_type'] === 'fixed' ? money($ag['rent_amount']) : e($ag['percentage_rate']) . '% ' . e(t('of_sales')) ?></td>
           <td><?= e(freqLabel($ag['billing_frequency'])) ?></td>
-          <td><?= date('d M Y', strtotime($ag['period_from'])) ?> → <?= date('d M Y', strtotime($ag['period_to'])) ?></td>
+          <td class="text-nowrap"><span dir="ltr"><?= date('d M Y', strtotime($ag['period_from'])) ?> → <?= date('d M Y', strtotime($ag['period_to'])) ?></span></td>
           <td><span class="pill <?= $state[1] ?>"><?= $state[0] ?></span></td>
           <td>
             <?php if ($ag['scan_file']): ?>

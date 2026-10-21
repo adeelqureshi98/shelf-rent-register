@@ -147,5 +147,49 @@ if ($type === 'expiring') {
     csvOut('expiring-agreements.csv', ['Company', 'Ledger code', 'Period ends', 'Days left', 'Window'], $rows);
 }
 
+if ($type === 'income') {
+    $year = max(2020, min(2100, (int)($_GET['year'] ?? date('Y'))));
+    $month = isset($_GET['month']) && $_GET['month'] !== '' ? (int)$_GET['month'] : null;
+    if ($month !== null && ($month < 1 || $month > 12)) $month = null;
+    $s = incomeStatement($pdo, $year, $month);
+    $row = fn(string $label, array $r) => [$label, number_format($r['expected'], 2, '.', ''), number_format($r['received'], 2, '.', ''),
+        number_format($r['outstanding'], 2, '.', ''), $r['recovery_pct'] === null ? '' : number_format($r['recovery_pct'], 1)];
+    $rows = [$row('Shelf Rent Income', $s['rent']), $row('Incentive Income', $s['incentive']), $row('Total Income', $s['total']),
+             ['Awaited bills (count only, never money)', $s['awaited_bills'], '', '', ''],
+             ['Awaited incentives (count only, never money)', $s['awaited_incentives'], '', '', '']];
+    $suffix = $year . ($month !== null ? '-' . str_pad((string)$month, 2, '0', STR_PAD_LEFT) : '');
+    csvOut('income-statement-' . $suffix . '.csv', ['Income', 'Expected', 'Received', 'Outstanding', 'Recovery %'], $rows);
+}
+
+if ($type === 'position') {
+    $p = financialPosition($pdo);
+    $f = fn($v) => number_format((float)$v, 2, '.', '');
+    $rows = [
+        ['Shelf rent', $f($p['rent_expected']), $f($p['rent_received']), $f($p['rent_outstanding']), $f($p['rent_overdue'])],
+        ['Incentives', $f($p['inc_expected']), $f($p['inc_received']), $f($p['inc_outstanding']), $f($p['inc_overdue'])],
+        ['Total', $f($p['total_expected']), $f($p['total_received']), $f($p['total_outstanding']), $f($p['overdue'])],
+        ['Not yet due (part of outstanding)', '', '', $f($p['not_yet_due']), ''],
+        ['Awaited bills (count only)', $p['awaited_bills'], '', '', ''],
+        ['Awaited incentives (count only)', $p['awaited_incentives'], '', '', ''],
+        ['Rent aging 0-30 days', $p['aging']['0_30'][0], $f($p['aging']['0_30'][1]), '', ''],
+        ['Rent aging 31-60 days', $p['aging']['31_60'][0], $f($p['aging']['31_60'][1]), '', ''],
+        ['Rent aging 61-90 days', $p['aging']['61_90'][0], $f($p['aging']['61_90'][1]), '', ''],
+        ['Rent aging 90+ days', $p['aging']['90p'][0], $f($p['aging']['90p'][1]), '', ''],
+    ];
+    csvOut('financial-position-' . $p['as_of'] . '.csv', ['Item', 'Expected / Bills', 'Received / Amount', 'Outstanding', 'Overdue'], $rows);
+}
+
+if ($type === 'cash') {
+    $year = max(2020, min(2100, (int)($_GET['year'] ?? date('Y'))));
+    $c = cashReceived($pdo, $year);
+    $rows = [];
+    foreach ($c['months'] as $m => $v) {
+        $rows[] = [date('F', mktime(0, 0, 0, $m, 1)), $v['count'], number_format($v['amount'], 2, '.', '')];
+    }
+    $rows[] = ['Total cash in ' . $year, $c['total_count'], number_format($c['total_amount'], 2, '.', '')];
+    $rows[] = ['Incentive receipts (all periods, as recorded - not month-allocated)', '', number_format($c['incentive_received_total'], 2, '.', '')];
+    csvOut('cash-received-' . $year . '.csv', ['Month', 'Payments', 'Cash in'], $rows);
+}
+
 http_response_code(400);
 exit('Unknown report type.');

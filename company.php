@@ -56,7 +56,7 @@ layoutHead($ag['supplier_name'], 'agreements');
       <?= e($ag['ledger_code']) ?> ·
       <?= $ag['rent_type'] === 'fixed' ? e(t('fixed_rent')) . ' ' . money($ag['rent_amount']) : e(t('percentage_rent')) . ' @ ' . e($ag['percentage_rate']) . '% ' . e(t('of_sales')) ?> ·
       <?= e(freqLabel($ag['billing_frequency'])) ?> <?= e(t('billing_word')) ?> ·
-      <?= date('d M Y', strtotime($ag['period_from'])) ?> → <?= date('d M Y', strtotime($ag['period_to'])) ?>
+      <span dir="ltr"><?= date('d M Y', strtotime($ag['period_from'])) ?> → <?= date('d M Y', strtotime($ag['period_to'])) ?></span>
       <?php if ($ag['contact_person']): ?> · <?= e(t('contact')) ?>: <?= e($ag['contact_person']) ?><?= $ag['contact_phone'] ? ' (' . e($ag['contact_phone']) . ')' : '' ?><?php endif; ?>
       <?php if ($ag['scan_file']): ?> · <a href="<?= e(UPLOAD_URL . '/' . $ag['scan_file']) ?>" target="_blank"><?= e(t('scanned_agreement')) ?></a><?php endif; ?>
     </p>

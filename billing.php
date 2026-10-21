@@ -339,3 +339,158 @@ function incentiveTotals(PDO $pdo): array
     }
     return $tot;
 }
+
+/* ============================================================
+ * Financial Hub (v3) — three views over the SAME read paths
+ * above, so the Financial Hub page, the Reports panels and the
+ * CSV exports can never drift from the dashboard or each other.
+ *
+ * Honest scope (printed on the page and in ONE_PAGE_NOTE.md):
+ *  - The Income Statement covers shelf rent + incentive income
+ *    ONLY. It is not the mart's full trading profit & loss: the
+ *    register holds no expense data, so nothing is deducted.
+ *  - The Financial Position is a RECEIVABLES position only —
+ *    not a full balance sheet (no other assets, liabilities or
+ *    capital exist in this register).
+ *  - Cash Received month-allocates RENT payments by their real
+ *    payment_date. Incentive receipts are recorded as amounts
+ *    with no monthly payment-date ledger, so they appear only
+ *    as a separate total — never allocated to invented months.
+ * ============================================================ */
+
+/**
+ * Income Statement for one period: bills whose bill_month falls in
+ * the period + incentives whose expected_date falls in the period.
+ * $month = null means the whole year. Known amounts only; awaited
+ * items are counted, never turned into money.
+ * Returns rent / incentive / total rows, each:
+ *   expected, received, outstanding, recovery_pct (null if no expected)
+ * plus 'awaited_bills' and 'awaited_incentives' counts.
+ */
+function incomeStatement(PDO $pdo, int $year, ?int $month = null): array
+{
+    $mk = fn() => ['expected' => 0.0, 'received' => 0.0, 'outstanding' => 0.0, 'recovery_pct' => null];
+    $rent = $mk(); $inc = $mk();
+    $awaitedBills = 0; $awaitedInc = 0;
+
+    foreach (loadBills($pdo, $year) as $b) {
+        if ($month !== null && (int)date('n', strtotime($b['bill_month'])) !== $month) continue;
+        if ($b['expected_amount'] === null) { $awaitedBills++; continue; }
+        $expected = (float)$b['expected_amount'];
+        $rent['expected'] += $expected;
+        $rent['received'] += min($b['paid'], $expected);
+    }
+    foreach (loadIncentives($pdo) as $i) {
+        if ((int)date('Y', strtotime($i['expected_date'])) !== $year) continue;
+        if ($month !== null && (int)date('n', strtotime($i['expected_date'])) !== $month) continue;
+        if ($i['expected_amount'] === null) { $awaitedInc++; continue; }
+        $expected = (float)$i['expected_amount'];
+        $inc['expected'] += $expected;
+        $inc['received'] += min((float)$i['received_amount'], $expected);
+    }
+    foreach ([&$rent, &$inc] as &$r) {
+        $r['outstanding'] = max(0.0, $r['expected'] - $r['received']);
+        $r['recovery_pct'] = $r['expected'] > 0 ? $r['received'] / $r['expected'] * 100 : null;
+    }
+    unset($r);
+    $total = $mk();
+    $total['expected']    = $rent['expected'] + $inc['expected'];
+    $total['received']    = $rent['received'] + $inc['received'];
+    $total['outstanding'] = $rent['outstanding'] + $inc['outstanding'];
+    $total['recovery_pct'] = $total['expected'] > 0 ? $total['received'] / $total['expected'] * 100 : null;
+
+    return [
+        'rent' => $rent, 'incentive' => $inc, 'total' => $total,
+        'awaited_bills' => $awaitedBills, 'awaited_incentives' => $awaitedInc,
+        'year' => $year, 'month' => $month,
+    ];
+}
+
+/**
+ * Financial Position (receivables) as of today. Rent uses the same
+ * billed-to-date rule as headlineTotals(); incentives count every
+ * known-amount incentive. Overdue = balance past its due/expected
+ * date; not-yet-due = the rest of the outstanding money.
+ */
+function financialPosition(PDO $pdo): array
+{
+    $rent = headlineTotals($pdo);
+    $incT = incentiveTotals($pdo);
+    $today = date('Y-m-d');
+
+    $incOutstanding = 0.0; $incOverdue = 0.0;
+    foreach (loadIncentives($pdo) as $i) {
+        if ($i['expected_amount'] === null || $i['balance'] === null) continue;
+        $incOutstanding += $i['balance'];
+        if ($i['expected_date'] < $today) $incOverdue += $i['balance'];
+    }
+
+    $rentOutstanding = $rent['overdue'] + $rent['due'];
+    $overdue = $rent['overdue'] + $incOverdue;
+    $totalOutstanding = $rentOutstanding + $incOutstanding;
+
+    /* Rent aging buckets (same definition as the Reports aging panel). */
+    $aging = ['0_30' => [0, 0.0], '31_60' => [0, 0.0], '61_90' => [0, 0.0], '90p' => [0, 0.0]];
+    foreach (loadBills($pdo) as $b) {
+        if ($b['expected_amount'] === null || $b['due_date'] >= $today) continue;
+        $balance = (float)$b['expected_amount'] - $b['paid'];
+        if ($balance <= 0) continue;
+        $days = (int)floor((strtotime($today) - strtotime($b['due_date'])) / 86400);
+        $key = $days <= 30 ? '0_30' : ($days <= 60 ? '31_60' : ($days <= 90 ? '61_90' : '90p'));
+        $aging[$key][0]++;
+        $aging[$key][1] += $balance;
+    }
+
+    return [
+        'as_of'             => $today,
+        'rent_expected'     => $rent['expected'],
+        'rent_received'     => $rent['received'],
+        'rent_outstanding'  => $rentOutstanding,
+        'rent_overdue'      => $rent['overdue'],
+        'inc_expected'      => $incT['expected'],
+        'inc_received'      => $incT['received'],
+        'inc_outstanding'   => $incOutstanding,
+        'inc_overdue'       => $incOverdue,
+        'total_expected'    => $rent['expected'] + $incT['expected'],
+        'total_received'    => $rent['received'] + $incT['received'],
+        'total_outstanding' => $totalOutstanding,
+        'overdue'           => $overdue,
+        'not_yet_due'       => max(0.0, $totalOutstanding - $overdue),
+        'awaited_bills'     => $rent['awaited_count'],
+        'awaited_incentives'=> $incT['awaited_count'],
+        'aging'             => $aging,
+    ];
+}
+
+/**
+ * Cash Received for one year: RENT payments grouped by the month
+ * of their real payment_date (cash-in view — deliberately different
+ * from the bill-month recovery view). Plus the incentive receipts
+ * total (all years, as recorded amounts) which is NOT allocated
+ * to months, because incentives carry no payment-date ledger.
+ */
+function cashReceived(PDO $pdo, int $year): array
+{
+    $months = [];
+    for ($m = 1; $m <= 12; $m++) $months[$m] = ['count' => 0, 'amount' => 0.0];
+    $st = $pdo->prepare(
+        'SELECT MONTH(payment_date) AS m, COUNT(*) AS n, SUM(amount) AS total
+           FROM payments WHERE YEAR(payment_date) = :y GROUP BY MONTH(payment_date)'
+    );
+    $st->execute([':y' => $year]);
+    foreach ($st->fetchAll() as $r) {
+        $months[(int)$r['m']] = ['count' => (int)$r['n'], 'amount' => (float)$r['total']];
+    }
+    $incReceived = 0.0;
+    foreach (loadIncentives($pdo) as $i) {
+        if ($i['expected_amount'] === null) continue;
+        $incReceived += min((float)$i['received_amount'], (float)$i['expected_amount']);
+    }
+    $count = 0; $amount = 0.0;
+    foreach ($months as $v) { $count += $v['count']; $amount += $v['amount']; }
+    return [
+        'year' => $year, 'months' => $months,
+        'total_count' => $count, 'total_amount' => $amount,
+        'incentive_received_total' => $incReceived,
+    ];
+}
