@@ -68,6 +68,7 @@ $theme = currentTheme();
     <div class="input-group mb-4">
       <span class="input-group-text"><i class="bi bi-lock"></i></span>
       <input type="password" class="form-control" id="password" name="password" required placeholder="Your password">
+      <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="Show password" title="Show / hide password"><i class="bi bi-eye"></i></button>
     </div>
     <button class="btn btn-gold w-100" type="submit"><i class="bi bi-box-arrow-in-right me-1"></i> <?= e(t('sign_in')) ?></button>
   </form>
@@ -76,5 +77,21 @@ $theme = currentTheme();
     <a href="<?= e(langUrl('ur')) ?>" class="<?= $lang === 'ur' ? 'active' : '' ?>">اردو</a>
   </div>
 </div>
+<script>
+document.getElementById('togglePassword').addEventListener('click', function () {
+  var p = document.getElementById('password');
+  var icon = this.querySelector('i');
+  if (p.type === 'password') {
+    p.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+    this.setAttribute('aria-label', 'Hide password');
+  } else {
+    p.type = 'password';
+    icon.className = 'bi bi-eye';
+    this.setAttribute('aria-label', 'Show password');
+  }
+  p.focus();
+});
+</script>
 </body>
 </html>
